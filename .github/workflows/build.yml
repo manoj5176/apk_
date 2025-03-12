@@ -1,15 +1,35 @@
 name: CI
-on:
-  push:
-    branches: [ main ]
 
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    
+    - name: Cache dependencies
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache
+        key: ${{ runner.os }}-cache-${{ hashFiles('**/lockfiles') }}
+        restore-keys: |
+          ${{ runner.os }}-cache-
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        pytest
 
       # used to cache dependencies with a timeout
       - name: Get Date
