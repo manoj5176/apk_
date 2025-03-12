@@ -9,19 +9,19 @@ jobs:
 
     steps:
 
--uses: actions/checkout@v2
+uses: actions/checkout@v2
 
 
       used to cache dependencies with a timeout
 
--name: Get Date
+name: Get Date
 
         id: get-date
         run: |
           echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
         shell: bash
 
--name: Cache Buildozer global directory
+name: Cache Buildozer global directory
 
         uses: actions/cache@v2
         with:
@@ -34,7 +34,7 @@ uses: actions/cache@v2
           path: .buildozer
           key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
--name: Build with Buildozer
+name: Build with Buildozer
 
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer
@@ -42,7 +42,7 @@ uses: actions/cache@v2
           command: buildozer android debug
           buildozer_version: stable
 
--name: Upload artifacts
+name: Upload artifacts
 
         uses: actions/upload-artifact@v2
         with:
