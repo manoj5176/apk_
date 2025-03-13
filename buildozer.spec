@@ -43,10 +43,10 @@ requirements = python3,kivy,kivymd,pillow,uuid,jason,requests
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/data/ntpc-logo.png
+presplash.filename = %(source.dir)s/ntpc-logo.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/data/ntpc-logo.png
+icon.filename = %(source.dir)s/ntpc-logo.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
