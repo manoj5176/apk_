@@ -5,13 +5,12 @@ inputs:
     description: 'Python version to use'
     default: '3.8'
   work-dir:
-    default: '.'
+    default: '/home/runner/work/my-repo'  # Use a path without spaces
     description: 'Working directory'
   buildozer-cmd:
-    default: 'buildozer android debug'
+    default: 'buildozer --storage-dir /home/runner/work/my-repo/android-build android debug'
     description: 'Buildozer command to use'
 
-# Add the branding section
 branding:
   color: 'green'
   icon: 'play'
@@ -19,6 +18,11 @@ branding:
 runs:
   using: "composite"
   steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        path: ${{ inputs.work-dir }}  # Set the checkout path to a directory without spaces
+
     - name: Setup python
       uses: actions/setup-python@v5
       with:
@@ -28,7 +32,7 @@ runs:
     - name: Setup Java 17 required by Gradle
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'  # or 'zulu','liberica', etc.
+        distribution: 'temurin'
         java-version: '17'
 
     - name: Set JAVA_HOME
@@ -42,7 +46,7 @@ runs:
         source venv/bin/activate
         echo "Using Python==$(python --version)"
       shell: bash
-      
+
     - name: Install and upgrade dependencies
       run: |
         sudo apt update
@@ -57,7 +61,7 @@ runs:
           zlib1g-dev \
           libncurses5-dev \
           libncursesw5-dev \
-          libtinfo5 \
+          libtinfo6 \
           cmake \
           libffi-dev \
           libssl-dev
@@ -78,3 +82,9 @@ runs:
       run: |
         ${{ inputs.buildozer-cmd }}
       shell: bash
+
+    - name: Upload APK as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: kivy-app-apk
+        path: ${{ inputs.work-dir }}/bin/*.apk
