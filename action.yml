@@ -56,14 +56,13 @@ runs:
           zlib1g-dev \
           libncurses5-dev \
           libncursesw5-dev \
-          libtinfo6 \
+          libtinfo6 \  # Use libtinfo6
           cmake \
           libffi-dev \
           libssl-dev
-        if ! apt-cache show libtinfo5 > /dev/null 2>&1; then
-          wget http://archive.ubuntu.com/ubuntu/pool/main/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb
-          sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb
-        fi
+        wget http://archive.ubuntu.com/ubuntu/pool/main/n/ncurses/libtinfo5_6.2-0ubuntu2_amd64.deb
+        sudo dpkg -i libtinfo5_6.2-0ubuntu2_amd64.deb
+        sudo apt --fix-broken install
         export PATH=$PATH:~/.local/bin/
         python3 -m pip install --upgrade \
           Cython==0.29.33 \
@@ -77,16 +76,9 @@ runs:
         fi
       shell: bash
 
-    - name: Initialize Buildozer if not already initialized
-      run: |
-        if [ ! -f buildozer.spec ]; then
-          buildozer init
-        fi
-      shell: bash
-
     - name: Build with Buildozer
       run: |
-        ${{ inputs.buildozer-cmd }} || (echo "Build failed" && exit 1)
+        ${{ inputs.buildozer-cmd }}
       shell: bash
 
     - name: Upload APK as artifact
