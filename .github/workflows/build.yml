@@ -3,40 +3,59 @@ name: Build APK
 on:
   push:
     branches:
-      - main
+      - main  # Trigger workflow on push to the main branch
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
     steps:
+      # Step 1: Checkout the code from the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.9'  # Use Python 3.9
 
-      - name: Install dependencies
+      # Step 3: Install system dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip python3-setuptools python3-virtualenv openjdk-8-jdk unzip
+          sudo apt-get install -y \
+            python3-pip \
+            python3-setuptools \
+            python3-virtualenv \
+            openjdk-8-jdk \
+            unzip \
+            zip \
+            libncurses5  # Required for Buildozer
+
+      # Step 4: Install Python dependencies
+      - name: Install Python dependencies
+        run: |
           pip install buildozer cython
 
+      # Step 5: Initialize Buildozer
       - name: Initialize Buildozer
         run: |
           buildozer init
 
+      # Step 6: Build the APK
       - name: Build APK
         run: |
           buildozer -v android debug
 
+      # Step 7: Debugging - List files in the bin directory
       - name: List files in bin directory
         run: |
           ls -l bin/
 
+      # Step 8: Upload the APK as an artifact
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
-          name: myapp-debug.apk
-          path: bin/myapp-0.1-debug.apk
+          name: myapp-debug.apk  # Name of the artifact
+          path: bin/*.apk        # Path to the APK file(s)
