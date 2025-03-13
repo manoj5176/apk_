@@ -10,7 +10,7 @@ package.name = lottiedemo
 package.domain = dev.tshirtman
 
 # (str) Source code where the main.py live
-source.dir = src/
+source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
@@ -36,7 +36,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,requests,pillow,kivymd,json,uuid
+requirements = python3,kivy,requests,pillow,json,uuid
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -65,7 +65,7 @@ orientation = portrait
 osx.python_version = 3
 
 # Kivy version to use
-osx.kivy_version = 1.9.1
+osx.kivy_version = 2.3.0
 
 #
 # Android specific
@@ -88,7 +88,7 @@ fullscreen = 0
 android.presplash_lottie = "42369-weather-wind.json"
 
 # (list) Permissions
-#android.permissions = INTERNET
+android.permissions = INTERNET
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -129,7 +129,7 @@ android.api = 28
 # agreements. This is intended for automation only. If set to False,
 # the default, you will be shown the license when first running
 # buildozer.
-# android.accept_sdk_license = False
+ android.accept_sdk_license = True
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
