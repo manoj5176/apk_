@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = ntpc kaniha
+title = Lottie Demo
 
 # (str) Package name
-package.name = quesstionnaire
+package.name = lottiedemo
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = dev.tshirtman
@@ -36,17 +36,17 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,kivymd,pillow,uuid,jason,requests
+requirements = python3,kivy,requests,pillow,kivymd,json,uuid
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/ntpc-logo.png
+#presplash.filename = %(source.dir)s/data/presplash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/ntpc-logo.png
+#icon.filename = %(source.dir)s/data/icon.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
@@ -85,10 +85,10 @@ fullscreen = 0
 # see https://lottiefiles.com/ for examples and https://airbnb.design/lottie/
 # for general documentation.
 # Lottie files can be created using various tools, like Adobe After Effect or Synfig.
-#android.presplash_lottie = "42369-weather-wind.json"
+android.presplash_lottie = "42369-weather-wind.json"
 
 # (list) Permissions
-android.permissions = INTERNET
+#android.permissions = INTERNET
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
@@ -129,7 +129,7 @@ android.api = 28
 # agreements. This is intended for automation only. If set to False,
 # the default, you will be shown the license when first running
 # buildozer.
-android.accept_sdk_license = True
+# android.accept_sdk_license = False
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
@@ -223,7 +223,7 @@ android.accept_sdk_license = True
 #android.copy_libs = 1
 
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.arch = armeabi-v7a,arm -v8a
+android.arch = armeabi-v7a
 
 # (int) overrides automatic versionCode computation (used in build.gradle)
 # this is not the same as app version and should only be edited if you know what you're doing
