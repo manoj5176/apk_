@@ -1,16 +1,5 @@
 name: Build APK
- steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: my-artifact
-          path: path/to/artifacts
 on:
   push:
     branches:
@@ -42,11 +31,12 @@ jobs:
         run: |
           buildozer -v android debug
 
+      - name: List files in bin directory
+        run: |
+          ls -l bin/
+
       - name: Upload APK
         uses: actions/upload-artifact@v3
         with:
           name: myapp-debug.apk
-          path: bin/*.apk
-
-  
-   
+          path: bin/myapp-0.1-debug.apk
