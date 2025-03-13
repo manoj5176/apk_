@@ -18,7 +18,9 @@ branding:
 runs:
   using: "composite"
   steps:
-    - name: Check Ubuntu version
+    - name: jobs:
+  build:
+    runs-on: ubuntu-20.04  # Use Ubuntu 20.04Check Ubuntu version
       run: |
         lsb_release -a
       shell: bash
