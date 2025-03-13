@@ -1,3 +1,4 @@
+
 name: 'Kivy App to APK'
 description: 'Convert Kivy app to APK'
 inputs:
@@ -57,19 +58,10 @@ runs:
           zlib1g-dev \
           libncurses5-dev \
           libncursesw5-dev \
-          
+          libtinfo6 \
           cmake \
           libffi-dev \
-          build-essential \
-          libstdc++6 \
-          
-          aidl \
-          libltdl-dev \
-          
-        wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-        sudo apt install ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
-        python3 -m pip install libtool
-        python3 -m pip install docwriter
+          libssl-dev
         export PATH=$PATH:~/.local/bin/
         python3 -m pip install --upgrade \
           Cython==0.29.33 \
