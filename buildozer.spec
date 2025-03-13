@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = Lottie Demo
+title = ntpc kaniha
 
 # (str) Package name
-package.name = lottiedemo
+package.name = quesstionnaire
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = dev.tshirtman
@@ -43,10 +43,10 @@ requirements = python3,kivy,kivymd,pillow,uuid,jason,requests
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
+presplash.filename = %(source.dir)s/data/ntpc-logo.png
 
 # (str) Icon of the application
-#icon.filename = %(source.dir)s/data/icon.png
+icon.filename = %(source.dir)s/data/ntpc-logo.png
 
 # (str) Supported orientation (one of landscape, sensorLandscape, portrait or all)
 orientation = portrait
@@ -85,7 +85,7 @@ fullscreen = 0
 # see https://lottiefiles.com/ for examples and https://airbnb.design/lottie/
 # for general documentation.
 # Lottie files can be created using various tools, like Adobe After Effect or Synfig.
-android.presplash_lottie = "42369-weather-wind.json"
+#android.presplash_lottie = "42369-weather-wind.json"
 
 # (list) Permissions
 android.permissions = INTERNET
@@ -129,7 +129,7 @@ android.api = 28
 # agreements. This is intended for automation only. If set to False,
 # the default, you will be shown the license when first running
 # buildozer.
-# android.accept_sdk_license = False
+android.accept_sdk_license = True
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
@@ -223,7 +223,7 @@ android.api = 28
 #android.copy_libs = 1
 
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.arch = armeabi-v7a
+android.arch = armeabi-v7a,arm -v8a
 
 # (int) overrides automatic versionCode computation (used in build.gradle)
 # this is not the same as app version and should only be edited if you know what you're doing
