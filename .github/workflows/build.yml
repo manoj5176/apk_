@@ -26,15 +26,17 @@ jobs:
         with:
           api-level: 31
           ndk-version: 23.1.7779620
-          components: build-tools;31.0.0
+          components: platform-tools, platforms;android-31, build-tools;31.0.0
       
       - name: Accept Licenses
         run: |
           yes | sdkmanager --licenses
       
-      - name: Install AIDL
+      - name: Ensure AIDL is installed
         run: |
-          sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+          sdkmanager --install "build-tools;31.0.0"
+          sdkmanager --install "platform-tools"
+          sdkmanager --install "platforms;android-31"
       
       - name: Build APK
         run: |
