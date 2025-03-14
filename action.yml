@@ -1,80 +1,50 @@
-name: 'Kivy App to APK'
-description: 'Convert Kivy app to APK'
-inputs:
-  python-version:
-    description: 'Python version to use'
-    default: '3.8'
-  work-dir:
-    default: '.'
-    description: 'Working directory'
-  buildozer-cmd:
-    default: 'buildozer android debug'
-    description: 'Buildozer command to use'
+on: [push, pull_request]
 
-# Add the branding section
-branding:
-  color: 'green'
-  icon: 'play'
+env:
+  PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: 0
 
-runs:
-  using: "composite"
-  steps:
+name: Android Integration
+jobs:
+  Integration:
+    strategy:
+      matrix:
+        os:
+          - 'ubuntu-latest'
+          - 'macOs-latest'
+    runs-on: ${{ matrix.os }}
+    steps:
     - name: Setup python
       uses: actions/setup-python@v5
       with:
-        architecture: x64
-        python-version: ${{ inputs.python-version }}
-
-    - name: Setup Java 17 required by Gradle
+        python-version: '3.x'
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'  # or 'zulu','liberica', etc.
         java-version: '17'
-
-    - name: Set JAVA_HOME
+        distribution: 'temurin'
+    - uses: actions/checkout@v4
+    - name: Setup environment
       run: |
-        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Prepare virtual environment
+        pip install .
+    - run: buildozer --help
+    - run: buildozer init
+    - name: SDK, NDK and p4a download
       run: |
-        python3 -m venv venv
-        source venv/bin/activate
-        echo "Using Python==$(python --version)"
-      shell: bash
-      
-    - name: Install and upgrade dependencies
+        sed -i.bak "s/# android.accept_sdk_license = False/android.accept_sdk_license = True/" buildozer.spec
+        sed -i.bak "s/#p4a.branch = master/p4a.branch = develop/" buildozer.spec
+        buildozer android p4a -- --help
+    # Install OS specific dependencies
+    - name: Install Linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      # Required by some p4a recipes, but not
+      # installed by p4a on Linux.
+      run: sudo apt -y install automake        
+    - name: Debug Build
       run: |
-        sudo apt update
-        sudo apt install -y git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          autoconf \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libncurses6-dev \
-          libncursesw6-dev \
-          libtinfo6\
-          cmake \
-          libffi-dev \
-          libssl-dev
-        export PATH=$PATH:~/.local/bin/
-        python3 -m pip install --upgrade \
-          Cython==0.29.33 \
-          buildozer
-      shell: bash
-
-    - name: Install requirements in requirements.txt if it exists
+        touch main.py
+        buildozer android debug
+    - name: Release Build (aab)
       run: |
-        if [ -f requirements.txt ]; then
-          python3 -m pip install -r requirements.txt
-        fi
-      shell: bash
-
-    - name: Build with Buildozer
-      run: |
-        ${{ inputs.buildozer-cmd }}
-      shell: bash
+        touch main.py
+        export BUILDOZER_ALLOW_ORG_TEST_DOMAIN=1
+        buildozer android release
