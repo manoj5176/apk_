@@ -3,49 +3,31 @@ name: Build APK
 on: [push]
 
 jobs:
-  my-job:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref }}
-
+      
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v2
         with:
-          distribution: 'temurin'
+          distribution: 'adopt'
           java-version: '17'
-
-      - name: Install Buildozer dependencies
+      
+      - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev automake
-          sudo apt install -y libtinfo6 || sudo apt install -y libtinfo5
-          pip install --user --upgrade Cython virtualenv
-          pip install --user --upgrade buildozer
-          echo 'export PATH=$PATH:~/.local/bin/' >> ~/.bashrc
-
-      - name: Initialize Buildozer
-        run: |
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
-
+          sudo apt-get update
+          sudo apt-get install -y python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libffi-dev libssl-dev automake
+          pip3 install --user --upgrade cython virtualenv buildozer
+          
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 31
+          ndk-version: 23.1.7779620
+          components: build-tools;31.0.0
+      
       - name: Build APK
         run: |
-          set -e
-          yes | buildozer -v android debug --log-level 2
-
-      - name: Verify APK
-        run: |
-          if [ ! -f bin/*.apk ]; then
-            echo "APK file not found!"
-            exit 1
-          fi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package
-          path: bin/*.apk
+          buildozer -v android debug --log-level 2
