@@ -21,9 +21,6 @@ jobs:
           sudo apt-get install -y python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libffi-dev libssl-dev automake
           pip3 install --user --upgrade cython virtualenv buildozer
       
-      - name: Initialize Buildozer
-        run: buildozer init
-      
       - name: Build APK
         run: |
           buildozer -v android debug --log-level 2
