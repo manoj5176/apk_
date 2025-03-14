@@ -1,14 +1,23 @@
 name: Build APK
+
 on: [push]
+
 jobs:
   my-job:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
 
-      - name: Buildozer dependencies
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Buildozer dependencies
         run: |
           sudo apt update
           sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev automake
@@ -16,12 +25,23 @@ jobs:
           pip install --user --upgrade buildozer
           echo 'export PATH=$PATH:~/.local/bin/' >> ~/.bashrc
 
-      - name: Handle Java path
+      - name: Initialize Buildozer
         run: |
-          export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
-          sudo update-java-alternatives --set ${JAVA_HOME}
-          export PATH=$JAVA_HOME/bin:$PATH
+          if [ ! -f buildozer.spec ]; then
+            buildozer init
+          fi
+
+      - name: Build APK
+        run: |
+          set -e
           yes | buildozer -v android debug
+
+      - name: Verify APK
+        run: |
+          if [ ! -f bin/*.apk ]; then
+            echo "APK file not found!"
+            exit 1
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
