@@ -44,7 +44,7 @@ jobs:
             zlib1g-dev \
             libncurses5-dev \
             libncursesw5-dev \
-              
+            libtinfo5.6 \
             cmake \
             libffi-dev \
             libssl-dev
