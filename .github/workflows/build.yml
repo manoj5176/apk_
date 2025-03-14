@@ -17,6 +17,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - name: Run Autoreconf
+        run: autoreconf -i
+
+      - name: Configure
+        run: ./configure
 
       - name: Install Buildozer dependencies
         run: |
