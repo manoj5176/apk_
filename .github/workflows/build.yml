@@ -17,6 +17,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - name: Install autoconf
+        run: sudo apt-get install autoconf
+      - name: Generate configure script
+        run: autoconf
+      - name: Configure the project
+        run: ./configure
+      - name: Build the project
+        run: make
 
       - name: Install Buildozer dependencies
         run: |
