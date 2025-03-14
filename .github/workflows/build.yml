@@ -20,6 +20,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libffi-dev libssl-dev automake
           pip3 install --user --upgrade cython virtualenv buildozer
+          
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 31
+          ndk-version: 23.1.7779620
+          components: build-tools;31.0.0
       
       - name: Build APK
         run: |
