@@ -32,6 +32,11 @@ jobs:
             buildozer init
           fi
 
+      - name: Run Autoupdate and Autoreconf
+        run: |
+          autoupdate
+          autoreconf -i
+
       - name: Build APK
         run: |
           set -e
