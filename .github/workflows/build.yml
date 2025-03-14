@@ -27,6 +27,10 @@ jobs:
           pip install --user --upgrade buildozer
           echo 'export PATH=$PATH:~/.local/bin/' >> ~/.bashrc
 
+      - name: Run autoupdate
+        run: |
+          autoupdate
+
       - name: Initialize Buildozer
         run: |
           if [ ! -f buildozer.spec ]; then
