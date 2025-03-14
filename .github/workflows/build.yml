@@ -28,6 +28,14 @@ jobs:
           ndk-version: 23.1.7779620
           components: build-tools;31.0.0
       
+      - name: Accept Licenses
+        run: |
+          yes | sdkmanager --licenses
+      
+      - name: Install AIDL
+        run: |
+          sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+      
       - name: Build APK
         run: |
           buildozer -v android debug --log-level 2
