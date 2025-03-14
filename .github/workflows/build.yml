@@ -49,3 +49,7 @@ jobs:
         with:
           name: package
           path: bin/*.apk
+
+      - name: Set Buildozer log level to verbose
+        run: |
+          echo "log_level = 2" >> buildozer.spec
