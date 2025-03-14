@@ -44,7 +44,7 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@d360eeb6c5e6f9f2f0f5f0f5f0f5f0f5f0f5f0f
+        uses: actions/upload-artifact@v2
         with:
           name: package
           path: bin/*.apk
