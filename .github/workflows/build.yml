@@ -26,12 +26,18 @@ jobs:
           pip install --user --upgrade Cython virtualenv
           pip install --user --upgrade buildozer
           echo 'export PATH=$PATH:~/.local/bin/' >> ~/.bashrc
+          sudo apt-get install -y libtool m4 autoconf
 
       - name: Initialize Buildozer
         run: |
           if [ ! -f buildozer.spec ]; then
             buildozer init
           fi
+
+      - name: Update configure.ac
+        run: |
+          autoupdate
+          echo "m4_pattern_allow([LT_SYS_SYMBOL_USCORE])" >> configure.ac
 
       - name: Build APK
         run: |
