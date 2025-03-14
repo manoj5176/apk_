@@ -1,20 +1,71 @@
+name: APK BUILDER WORKFLOW
 on:
   push:
-    branches: [ main ]
-
+    branches:
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build APK
-        uses: digreatbrian/buildozer-action@v2
+      - name: Cloning Repository To Runner
+        uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
-          buildozer-cmd: buildozer -v android debug
-
-      - name: Upload artifacts
+          architecture: x64
+          python-version: '3.8'
+      - name: Setup Java 17 required by Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Set JAVA_HOME
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+        shell: bash
+      - name: Prepare virtual environment
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          echo "Using Python==$(python --version)"
+        shell: bash
+      - name: Install and upgrade dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get upgrade -y
+          sudo apt-get install -y git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev
+          export PATH=$PATH:~/.local/bin/
+          python3 -m pip install --upgrade \
+            Cython==0.29.33 \
+            buildozer
+        shell: bash
+      - name: Install requirements in requirements.txt if it exists
+        run: |
+          if [ -f requirements.txt ]; then
+            python3 -m pip install -r requirements.txt
+          fi
+        shell: bash
+      - name: Build with Buildozer
+        run: |
+          yes | buildozer -v android debug
+        shell: bash
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: package
-          path: ./bin/*.apk
+          path: |
+            bin/*.apk
