@@ -5,17 +5,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
     steps:
       - uses: actions/checkout@v4
       - name: Build APK
         uses: digreatbrian/buildozer-action@v2
         with:
           python-version: 3.8
-   
-      - name: Use GitHub token
-        env:
-          GITHUB_TOKEN: ${{ steps.decode-token.outputs.token }}
           buildozer-cmd: buildozer -v android debug
 
       - name: Upload artifacts
