@@ -36,6 +36,8 @@ jobs:
         unzip -qq commandlinetools-linux-7583922_latest.zip -d $HOME/lib/android/cmdline-tools
         yes | $HOME/lib/android/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/lib/android "platform-tools" "platforms;android-30" "build-tools;30.0.3"
         yes | $HOME/lib/android/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/lib/android --licenses
+        echo "export ANDROID_SDK_ROOT=$HOME/lib/android" >> $GITHUB_ENV
+        echo "export PATH=$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
 
     - name: Initialize Buildozer
       run: |
