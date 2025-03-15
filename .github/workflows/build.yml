@@ -37,6 +37,11 @@ jobs:
         sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
         sdkmanager "build-tools;30.0.3" "platforms;android-30" "cmdline-tools;latest"
 
+    - name: Install Cython
+      run: |
+        sudo apt-get install -y python3-pip
+        sudo pip install cython
+
     - name: Build with Buildozer
       run: |
         sudo pip install buildozer
