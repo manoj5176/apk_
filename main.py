@@ -17,7 +17,9 @@ from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
 # GitHub API details
-GITHUB_TOKEN = "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" 
+
+
+GITHUB_TOKEN = "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" 
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
