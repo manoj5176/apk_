@@ -41,6 +41,8 @@ jobs:
       run: |
         sudo apt-get install -y python3-pip
         sudo pip install cython
+    - name: Build with Gradle
+      run: ./gradlew build
 
     - name: Build with Buildozer
       run: |
