@@ -12,24 +12,7 @@ jobs:
         uses: digreatbrian/buildozer-action@v2
         with:
           python-version: 3.8
-           # Decode the GitHub token using Python
-      - name: Decode GitHub token
-        id: decode-token
-        run: |
-          python -c "
-          import os
-          import base64
-          encoded_token = os.getenv('ENCODED_GITHUB_TOKEN')
-          if not encoded_token:
-              raise ValueError('Encoded GitHub token not found in environment variables.')
-          decoded_token = base64.b64decode(encoded_token.encode('utf-8')).decode('utf-8')
-          print('::add-mask::' + decoded_token)  # Mask the decoded token in logs
-          print('::set-output name=token::' + decoded_token)
-          "
-        env:
-          ENCODED_GITHUB_TOKEN: ${{ secrets.ENCODED_GITHUB_TOKEN }}
-
-      # Use the decoded token
+   
       - name: Use GitHub token
         env:
           GITHUB_TOKEN: ${{ steps.decode-token.outputs.token }}
