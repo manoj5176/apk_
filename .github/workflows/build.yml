@@ -2,63 +2,76 @@ name: Build APK
 
 on: [push]
 
-jobs:
+jobs/workflows/build.yml` file:
+
+    ```yaml
+    name:
   my-job:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout: Build APK
+
+    on: [push, pull_request]
+
+    jobs@v2
         with:
           ref: ${{ github.ref }}
 
+:
+      build:
+        runs-on: ubuntu-latest
+
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup        steps:
+        - name: Checkout code
+          uses-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Install autoconf
-        run: sudo apt-get install autoconf
+
+      - name:: actions/checkout@v2
+
+        - name: Set up J Install autoconf and automake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yDK 17
+          uses: actions/setup-java@v2
+          with autoconf automake
+
       - name: Generate configure script
-        run: autoconf
-      - name: Configure the project
+:
+            distribution: 'temurin'
+            java        run: autoconf
+
+      - name: Configure the project-version: '17'
+
+        - name: Install Automake
         run: ./configure
-      - name: Build the project
+
+      - name:
+          run: sudo apt-get install -y Build the project
         run: make
 
-      - name: Install Buildozer dependencies
+      - name: Install automake
+
+ Buildozer dependencies
         run: |
-          sudo apt update
-          sudo apt install -y git zip unzip python3-pip zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev automake
-          sudo apt install -y libtinfo6 || sudo apt install -y libtinfo5
-          pip install --user --upgrade Cython virtualenv
-          pip install --user --upgrade buildozer
+          sudo        - name: Run configure script
+          run: ./configure
+
+        - name: Build
+          run: apt update
+          sudo apt install -y git zip unzip python3-pip zlib1g-dev libncurses5-dev libncursesw5-dev cmake make
+    ```
+
+By ensuring that `automake` is installed and libffi-dev libssl-dev automake
+          sudo apt install -y libtinfo6 || sudo apt install - configuring it properly, the `AM_INIT_AUTOMAKE`y libtinfo5
+          pip install --user --upgrade macro should be recognized, and the job should proceed without errors Cython virtualenv
+          pip install --.user --upgrade buildozer
           echo 'export PATH=$PATH:~/.local/bin/' >> ~/.bashrc
 
       - name: Run autoupdate
         run: |
           autoupdate
-
-      - name: Initialize Buildozer
-        run: |
-          if [ ! -f buildozer.spec ]; then
-            buildozer init
-          fi
-
-      - name: Build APK
-        run: |
-          set -e
-          yes | buildozer -v android debug --log-level 2
-
-      - name: Verify APK
-        run: |
-          if [ ! -f bin/*.apk ]; then
-            echo "APK file not found!"
-            exit 1
-          fi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package
-          path: bin/*.apk
