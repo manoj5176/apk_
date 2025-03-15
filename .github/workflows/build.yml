@@ -18,6 +18,8 @@ jobs:
     - name: Add missing repositories and update package list
       run: |
         sudo add-apt-repository universe
+        sudo add-apt-repository multiverse
+        sudo add-apt-repository restricted
         sudo apt-get update
         sudo apt-get install -y libtinfo5
 
