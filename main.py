@@ -19,7 +19,7 @@ from kivy.metrics import dp
 # GitHub API details
 
 
-GITHUB_TOKEN = "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" 
+GITHUB_TOKEN = "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" 
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
