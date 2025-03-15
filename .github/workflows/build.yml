@@ -35,6 +35,10 @@ jobs:
         yes | sdkmanager --licenses
         sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
         sdkmanager "build-tools;30.0.3" "platforms;android-30" "cmdline-tools;latest"
+    - name: Move Command Line Tools
+      run: |
+        mkdir -p /home/runner/sdk/cmdline-tools/latest
+        mv /home/runner/sdk/cmdline-tools/* /home/runner/sdk/cmdline-tools/latest/
 
     - name: Build with Buildozer
       run: |
