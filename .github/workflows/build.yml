@@ -15,8 +15,9 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Update package list and install dependencies
+    - name: Add missing repositories and update package list
       run: |
+        sudo add-apt-repository universe
         sudo apt-get update
         sudo apt-get install -y libtinfo5
 
