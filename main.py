@@ -17,7 +17,7 @@ from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
 # GitHub API details
-GITHUB_TOKEN = "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" 
+GITHUB_TOKEN = "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" 
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
@@ -29,8 +29,9 @@ def fetch_admin_credentials():
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
     proxies = {
     "https": "http://10.0.9.40:8080"}
+
     try:
-        response = requests.get(url, headers=headers,proxies=proxies)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raise an exception for HTTP errors
         file_data = response.json()
 
@@ -71,6 +72,8 @@ class LoginScreen(Screen):
         self.create_ui()
         self.add_widget(self.layout)
     def create_ui(self):
+        self.layout.clear_widgets()
+
         # Add a logo at the top
         with self.layout.canvas.before:
             Color(0.95, 0.95, 0.95, 1)  # Light gray background
@@ -165,6 +168,7 @@ class LoginScreen(Screen):
         if username == ADMIN_CREDENTIALS["username"] and password == ADMIN_CREDENTIALS["password"]:
             self.show_popup("Success", "Login successful!")
             self.manager.current = "admin"
+            
         else:
             self.show_popup("Error", "Invalid username or password")
             self.manager.current='main'
@@ -172,10 +176,20 @@ class LoginScreen(Screen):
     def show_popup(self, title, message):
         popup = Popup(title=title, size_hint=(0.8, 0.4))
         popup.content = Label(text=message)
+        self.refresh_data(None)
         popup.open()
 
     def switch_to_login(self, instance):
         self.manager.current = "login"
+
+    def refresh_data(self, instance):
+        # Schedule the UI update using Clock
+        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
+
+    def _refresh_ui(self, dt):
+        """Internal method to refresh the UI."""
+       
+        self.create_ui()
 
 
 
@@ -188,7 +202,7 @@ def fetch_questions():
     proxies = {
     "https": "http://10.0.9.40:8080"}
 
-    response = requests.get(url, headers=headers,proxies=proxies)
+    response = requests.get(url, headers=headers)
     print(f"API Response: {response.status_code} - {response.text}")  # Debugging
     if response.status_code == 200:
         file_data = response.json()
@@ -209,7 +223,7 @@ def update_github_file(questions):
     "https": "http://10.0.9.40:8080"}
 
     # Fetch existing file details
-    response = requests.get(url, headers=headers,proxies=proxies)
+    response = requests.get(url, headers=headers)
     if response.status_code == 200:
         file_data = response.json()
         if "sha" in file_data:
@@ -430,6 +444,9 @@ class MainScreen(Screen):
         popup = Popup(title='Results', size_hint=(0.8, 0.8))
         popup.content = Label(text=result_text, size_hint=(1, 1))
         popup.open()
+        self.refresh_data(None)
+        self.user_answers.clear()
+        #self.manager.current = "main"
 
     def refresh_data(self, instance):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
@@ -445,6 +462,7 @@ class MainScreen(Screen):
         self.manager.current = "admin"
     def switch_to_login(self, instance):
         self.manager.current = "login"
+
 
 class AdminScreen(Screen):
     def __init__(self, **kwargs):
@@ -579,13 +597,14 @@ class AdminScreen(Screen):
     def edit_question(self, question):
         self.manager.current = "edit_question"
         self.manager.get_screen("edit_question").load_question(question)
+        self.refresh_data(None)
 
     def delete_question(self, question):
         self.questions.remove(question)
         if update_github_file(self.questions):
             self.show_popup("Success", "Question deleted and file updated on GitHub.")
             #self.create_ui()  # Refresh the UI
-            
+            self.refresh_data(None)
             
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
@@ -594,6 +613,7 @@ class AdminScreen(Screen):
 
     def add_question(self, instance):
         self.manager.current = "add_question"
+        
 
     def switch_to_main(self, instance):
         if self.manager is None:
@@ -664,6 +684,10 @@ class AddQuestionScreen(Screen):
         self.manager.get_screen("admin").questions.append(new_question)
         if update_github_file(self.manager.get_screen("admin").questions):
             self.show_popup("Success", "Question added and file updated on GitHub.")
+            main_screen = self.manager.get_screen("admin")
+            main_screen.refresh_data(None)
+            self.manager.current = "admin"
+            
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
 
@@ -683,6 +707,8 @@ class AddQuestionScreen(Screen):
         popup = Popup(title=title, size_hint=(0.8, 0.4))
         popup.content = Label(text=message)
         popup.open()
+
+
 
 class EditQuestionScreen(Screen):
     def __init__(self, **kwargs):
