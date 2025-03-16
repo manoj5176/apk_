@@ -25,4 +25,4 @@ jobs:
         env:
           MY_SECRET: ${{secrets.SECRET_GITHUB }}
         run: |
-          python script.py
+          python main.py
