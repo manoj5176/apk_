@@ -1,3 +1,4 @@
+import os
 import json
 import requests
 import base64
@@ -19,7 +20,7 @@ from kivy.metrics import dp
 # GitHub API details
 
 
-GITHUB_TOKEN1 = os.getenv("GH_TOKEN")
+GITHUB_TOKEN = os.getenv("GH_TOKEN")
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
@@ -27,7 +28,7 @@ BRANCH = "main"
 
 # GitHub API to fetch credentials
 def fetch_admin_credentials():
-    GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
 
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE}"
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
@@ -201,7 +202,7 @@ class LoginScreen(Screen):
 
 # GitHub API to fetch questions
 def fetch_questions():
-    GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
     headers = {'Authorization': 'token ' + GITHUB_TOKEN }
     proxies = {
@@ -222,7 +223,7 @@ def fetch_questions():
 
 # Update questions on GitHub
 def update_github_file(questions):
-    GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
     headers = {'Authorization': 'token ' + GITHUB_TOKEN }
     proxies = {
