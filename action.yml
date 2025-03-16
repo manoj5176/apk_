@@ -7,14 +7,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: app_credentials
+    - name:manoj5176/app_credentials
+
 
       uses: actions/checkout@v2
 
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
     - name: Use GitHub Token
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Using GitHub Token"
-        # Example command using the token
-        curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/manoj5176
+        echo "GitHub Token is set: $GH_TOKEN"
