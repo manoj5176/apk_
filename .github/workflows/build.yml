@@ -17,7 +17,7 @@ jobs:
 
       - name: Build APK
         env:
-          GH_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SECRET_GITHUB}}
         run: |
           echo "Using GitHub Token"
           buildozer -v android debug
