@@ -19,7 +19,7 @@ from kivy.metrics import dp
 # GitHub API details
 
 
-GITHUB_TOKEN1 = os.getenv("secret_github")
+GITHUB_TOKEN1 = os.getenv("MY_SECRET")
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
