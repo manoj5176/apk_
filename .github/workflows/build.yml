@@ -1,5 +1,7 @@
 name: Build APK
 
+
+
 on:
   push:
     branches: [ main ]
@@ -9,22 +11,20 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Build APK
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: digreatbrian/buildozer-action@v2
+
         with:
           python-version: 3.8
-
-      - name: Build APK
         env:
           GH_TOKEN: ${{ secrets.SECRET_GITHUB}}
-        run: |
-          echo "Using GitHub Token"
-          buildozer -v android debug
+
+          buildozer-cmd: buildozer -v android debug
+          
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: package
           path: ./bin/*.apk
-
