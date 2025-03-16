@@ -23,6 +23,6 @@ jobs:
 
       - name: Run Python Script with Secret
         env:
-          MY_SECRET: ${{ secret_github }}
+          MY_SECRET: ${{secrets.SECRET_GITHUB }}
         run: |
           python script.py
