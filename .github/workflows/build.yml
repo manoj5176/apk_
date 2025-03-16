@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: 3.8
           buildozer-cmd: buildozer -v android debug
+        run: |
+          echo "GitHub Token is set: $GH_TOKEN"
+          buildozer -v android debug
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
