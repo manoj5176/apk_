@@ -10,6 +10,7 @@ jobs:
       - name: Build APK
         uses: digreatbrian/buildozer-action@v2
       - name: Run script
+        uses: actions/setup-python@v2
         env:
             MY_SECRET: ${{secret_github }}
         with:
