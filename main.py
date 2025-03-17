@@ -17,10 +17,10 @@ from kivy.lang import Builder
 from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
-from dotenv import load_dotenv
+
 # GitHub API details
 # File to store the access token
-CONFIG_FILE = "config9.json"
+CONFIG_FILE = "config22.json"
 def load_access_token():
     """Load the access token from the config file."""
     if os.path.exists(CONFIG_FILE):
@@ -566,8 +566,13 @@ class MainScreen(Screen):
         self.create_ui()
 
     def switch_to_admin(self, instance):
-        self.manager.current = "admin"
+        self.manager.get_screen("admin").refresh_data(None)
+        self.manager.current = "admin"# Switch to the main screen
+        #self.manager.current = "admin"
     def switch_to_login(self, instance):
+        self.manager.get_screen("login").refresh_data(None)
+        self.manager.current = "login"# Switch to the main screen
+        #self.manager.current = "admin"
         self.manager.current = "login"
 
 
@@ -892,7 +897,7 @@ class QuestionnaireApp(App):
             self.login_screen = LoginScreen(name="login")
             self.add_question_screen = AddQuestionScreen(name="add_question")
             self.edit_question_screen = EditQuestionScreen(name="edit_question")
-            self.registration_screen = MainScreen(name="registration")
+            #self.registration_screen = MainScreen(name="registration")
 
             
             self.screen_manager.add_widget(self.admin_screen)
@@ -903,8 +908,24 @@ class QuestionnaireApp(App):
             # If no token, show the registration screen
             self.registration_screen = RegistrationScreen(name="registration")
             self.screen_manager.add_widget(self.registration_screen)
+           
+            self.main_screen = MainScreen(name="main")
+            self.screen_manager.add_widget(self.main_screen)
+            self.admin_screen = AdminScreen(name="admin")
+            self.login_screen = LoginScreen(name="login")
+            self.add_question_screen = AddQuestionScreen(name="add_question")
+            self.edit_question_screen = EditQuestionScreen(name="edit_question")
+            #self.registration_screen = MainScreen(name="registration")
+
+            
+            self.screen_manager.add_widget(self.admin_screen)
+            self.screen_manager.add_widget(self.login_screen)
+            self.screen_manager.add_widget(self.add_question_screen)
+            self.screen_manager.add_widget(self.edit_question_screen)
 
 
+       
+        
 
       
 
