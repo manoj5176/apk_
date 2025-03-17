@@ -17,18 +17,112 @@ from kivy.lang import Builder
 from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
+from dotenv import load_dotenv
 # GitHub API details
+# File to store the access token
+CONFIG_FILE = "config9.json"
+def load_access_token():
+    """Load the access token from the config file."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                config = json.load(f)
+                return config.get("access_token")
+        except Exception as e:
+            print(f"Error loading access token: {e}")
+    return None
+
+# Save access token to config file
+def save_access_token(token):
+    """Save the access token to the config file."""
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump({"access_token": token}, f)
+        return True
+    except Exception as e:
+        print(f"Error saving access token: {e}")
+        return False
 
 
-GITHUB_TOKEN = os.getenv("GH_TOKEN")
 CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
 BRANCH = "main"
 
+
+# Registration Screen
+class RegistrationScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.create_ui()
+        self.add_widget(self.layout)
+
+    def create_ui(self):
+        self.layout.clear_widgets()
+
+        # Heading
+        heading = Label(
+            text="Device Registration",
+            size_hint_y=None,
+            height=dp(50),
+            font_size='24sp',
+            bold=True,
+            color=(0.2, 0.6, 1, 1)  # Blue color
+        )
+        self.layout.add_widget(heading)
+
+        # Token Input
+        self.token_input = TextInput(
+            hint_text="Enter Access Token",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),  # White background
+            foreground_color=(0, 0, 0, 1)  # Black text
+        )
+        self.layout.add_widget(self.token_input)
+
+        # Register Button
+        register_button = Button(
+            text="Register",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.2, 0.6, 1, 1),  # Blue color
+            color=(1, 1, 1, 1)  # White text
+        )
+        register_button.bind(on_press=self.register_device)
+        self.layout.add_widget(register_button)
+
+    def register_device(self, instance):
+        token = self.token_input.text.strip()
+        if not token:
+            self.show_popup("Error", "Access token cannot be empty.")
+            return
+
+        # Save the token to the config file
+        if save_access_token(token):
+            self.show_popup("Success", "Device registered successfully!")
+            self.manager.get_screen("main").refresh_data(None)
+            self.manager.current = "main" # Switch to the main screen
+        else:
+            self.show_popup("Error", "Failed to save access token.")
+
+    def show_popup(self, title, message):
+        popup = Popup(title=title, size_hint=(0.8, 0.4))
+        popup.content = Label(text=message)
+        
+        popup.open()
+
+
 # GitHub API to fetch credentials
 def fetch_admin_credentials():
     #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    GITHUB_TOKEN = load_access_token()
+    if not GITHUB_TOKEN:
+        raise Exception("Access token not found. Please register the device first.")
+    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
 
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE}"
     headers = {'Authorization': f'token {GITHUB_TOKEN}'}
@@ -202,7 +296,10 @@ class LoginScreen(Screen):
 
 # GitHub API to fetch questions
 def fetch_questions():
-    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    GITHUB_TOKEN = load_access_token()
+    if not GITHUB_TOKEN:
+        raise Exception("Access token not found. Please register the device first.")
+    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
     headers = {'Authorization': 'token ' + GITHUB_TOKEN }
     proxies = {
@@ -223,7 +320,10 @@ def fetch_questions():
 
 # Update questions on GitHub
 def update_github_file(questions):
-    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
+    GITHUB_TOKEN = load_access_token()
+    if not GITHUB_TOKEN:
+        raise Exception("Access token not found. Please register the device first.")
+    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
     url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
     headers = {'Authorization': 'token ' + GITHUB_TOKEN }
     proxies = {
@@ -782,18 +882,29 @@ class QuestionnaireApp(App):
         self.screen_manager = ScreenManager()
         self.questions = []
         self.selected_answers = {}
+        token = load_access_token()
+        if token:
+            # If token exists, go directly to the main screen
+            self.main_screen = MainScreen(name="main")
+            self.screen_manager.add_widget(self.main_screen)
+        
+            self.admin_screen = AdminScreen(name="admin")
+            self.login_screen = LoginScreen(name="login")
+            self.add_question_screen = AddQuestionScreen(name="add_question")
+            self.edit_question_screen = EditQuestionScreen(name="edit_question")
+            self.registration_screen = MainScreen(name="registration")
 
-        self.main_screen = MainScreen(name="main")
-        self.admin_screen = AdminScreen(name="admin")
-        self.login_screen = LoginScreen(name="login")
-        self.add_question_screen = AddQuestionScreen(name="add_question")
-        self.edit_question_screen = EditQuestionScreen(name="edit_question")
+            
+            self.screen_manager.add_widget(self.admin_screen)
+            self.screen_manager.add_widget(self.login_screen)
+            self.screen_manager.add_widget(self.add_question_screen)
+            self.screen_manager.add_widget(self.edit_question_screen)
+        else:
+            # If no token, show the registration screen
+            self.registration_screen = RegistrationScreen(name="registration")
+            self.screen_manager.add_widget(self.registration_screen)
 
-        self.screen_manager.add_widget(self.main_screen)
-        self.screen_manager.add_widget(self.admin_screen)
-        self.screen_manager.add_widget(self.login_screen)
-        self.screen_manager.add_widget(self.add_question_screen)
-        self.screen_manager.add_widget(self.edit_question_screen)
+
 
       
 
