@@ -17,10 +17,12 @@ from kivy.lang import Builder
 from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
+from kivy.uix.progressbar import ProgressBar
+import sys
 
 # GitHub API details
 # File to store the access token
-CONFIG_FILE = "config22.json"
+CONFIG_FILE = "config54.json"
 def load_access_token():
     """Load the access token from the config file."""
     if os.path.exists(CONFIG_FILE):
@@ -104,22 +106,29 @@ class RegistrationScreen(Screen):
         # Save the token to the config file
         if save_access_token(token):
             self.show_popup("Success", "Device registered successfully!")
-            self.manager.get_screen("main").refresh_data(None)
-            self.manager.current = "main" # Switch to the main screen
+            app = App.get_running_app()
+            app.access_token = token  # Store the token in the App instance
+            app.refresh_all_screens()  # Refresh all screens
+
+            # Restart the app after successful registration
+            Clock.schedule_once(lambda dt: restart_app(), 1)  # Restart after 1 second
         else:
             self.show_popup("Error", "Failed to save access token.")
 
     def show_popup(self, title, message):
         popup = Popup(title=title, size_hint=(0.8, 0.4))
         popup.content = Label(text=message)
-        
         popup.open()
 
+def restart_app():
+    """Restart the application."""
+    python = sys.executable  # Get the current Python interpreter
+    os.execl(python, python, *sys.argv)  # Restart the script
 
 # GitHub API to fetch credentials
-def fetch_admin_credentials():
+def fetch_admin_credentials(token):
     #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
-    GITHUB_TOKEN = load_access_token()
+    GITHUB_TOKEN = token
     if not GITHUB_TOKEN:
         raise Exception("Access token not found. Please register the device first.")
     #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
@@ -159,25 +168,56 @@ def fetch_admin_credentials():
 
 # Fetch admin credentials
 try:
-    ADMIN_CREDENTIALS = fetch_admin_credentials()
+    access_token = load_access_token()
+    if access_token:
+        ADMIN_CREDENTIALS = fetch_admin_credentials(access_token)
+    else:
+        ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
 except Exception as e:
     print(f"Error fetching admin credentials: {e}")
     ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
+# Base Screen Class
+class BaseScreen(Screen):
+    def show_loading(self, message="Loading..."):
+        self.loading_popup = Popup(title=message, size_hint=(0.6, 0.2))
+        self.loading_popup.content = ProgressBar()
+        self.loading_popup.open()
 
-class LoginScreen(Screen):
+    def hide_loading(self):
+        if self.loading_popup:
+            self.loading_popup.dismiss()
+
+    def show_popup(self, title, message):
+        popup = Popup(title=title, size_hint=(0.8, 0.4))
+        popup.content = Label(text=message)
+        popup.open()
+
+    def refresh_data(self, instance):
+        Clock.schedule_once(self._refresh_ui, 0.1)
+
+    def _refresh_ui(self, dt):
+        """Subclasses must implement this method to refresh their UI."""
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class LoginScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.create_ui()
         self.add_widget(self.layout)
+        try:
+            ADMIN_CREDENTIALS = fetch_admin_credentials(App.get_running_app().access_token)
+        except Exception as e:
+            print(f"Error fetching admin credentials: {e}")
+        ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
+    def _refresh_ui(self, dt):
+        """Clear input fields when the screen is opened."""
+        self.username_input.text = ""
+        self.password_input.text = ""
+
     def create_ui(self):
         self.layout.clear_widgets()
-
-        # Add a logo at the top
-        with self.layout.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)  # Light gray background
-            self.rect = Rectangle(size=self.layout.size, pos=self.layout.pos)
-        self.layout.bind(size=self._update_rect, pos=self._update_rect)
 
         # Heading
         heading = Label(
@@ -201,9 +241,12 @@ class LoginScreen(Screen):
             foreground_color=(0, 0, 0, 1)  # Black text
         )
         self.layout.add_widget(self.username_input)
+
+        # Password Input
         self.password_input = TextInput(
-            hint_text="Employee Id",
+            hint_text="Password",
             multiline=False,
+            password=True,  # Hide password input
             size_hint_y=None,
             height=dp(40),
             padding=[10, 0],
@@ -211,8 +254,6 @@ class LoginScreen(Screen):
             foreground_color=(0, 0, 0, 1)  # Black text
         )
         self.layout.add_widget(self.password_input)
-
-
 
         # Sign In Button
         sign_in_button = Button(
@@ -236,25 +277,18 @@ class LoginScreen(Screen):
         skip_button.bind(on_press=self.backtomain)
         self.layout.add_widget(skip_button)
 
-        # Footer
-        footer = Label(
-            text="© APP Version 1.0.1",
-            size_hint_y=None,
-            height=dp(30),
-            font_size='12sp',
-            color=(0.4, 0.4, 0.4, 1)  # Gray color
-        )
-        self.layout.add_widget(footer)
+    def authenticate(self, instance):
+        username = self.username_input.text
+        password = self.password_input.text
 
-    def _update_rect(self, instance, value):
-        """Update the size and position of the background rectangle."""
-        self.rect.size = instance.size
-        self.rect.pos = instance.pos
+        if username == ADMIN_CREDENTIALS["username"] and password == ADMIN_CREDENTIALS["password"]:
+            self.show_popup("Success", "Login successful!")
+            self.manager.current = "admin"
+        else:
+            self.show_popup("Error", "Invalid username or password")
 
-    def backtomain(self,instance):
-        self.manager.current='main'
-    
-
+    def backtomain(self, instance):
+        self.manager.current = 'main'
     
 
 
@@ -282,9 +316,9 @@ class LoginScreen(Screen):
         self.manager.current = "login"
 
     def refresh_data(self, instance):
+        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
         # Schedule the UI update using Clock
         Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
-
     def _refresh_ui(self, dt):
         """Internal method to refresh the UI."""
        
@@ -295,8 +329,8 @@ class LoginScreen(Screen):
 
 
 # GitHub API to fetch questions
-def fetch_questions():
-    GITHUB_TOKEN = load_access_token()
+def fetch_questions(token):
+    GITHUB_TOKEN = token
     if not GITHUB_TOKEN:
         raise Exception("Access token not found. Please register the device first.")
     #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
@@ -319,8 +353,8 @@ def fetch_questions():
         raise Exception(f"Failed to fetch questions: {response.status_code} - {response.text}")
 
 # Update questions on GitHub
-def update_github_file(questions):
-    GITHUB_TOKEN = load_access_token()
+def update_github_file(token,questions):
+    GITHUB_TOKEN = token
     if not GITHUB_TOKEN:
         raise Exception("Access token not found. Please register the device first.")
     #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
@@ -355,100 +389,83 @@ def update_github_file(questions):
     else:
         raise Exception(f"Failed to fetch file details from GitHub: {response.status_code} - {response.text}")
 
-class MainScreen(Screen):
+class MainScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.user_answers = {} 
+        self.user_answers = {}
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.progress_bar = ProgressBar(max=100, value=0)  # Add ProgressBar
+        self.layout.add_widget(self.progress_bar)
         self.fetch_questions()
         self.create_ui()
         self.add_widget(self.layout)
 
     def fetch_questions(self):
         try:
-            self.questions = fetch_questions()
+            self.questions = fetch_questions(App.get_running_app().access_token)
         except Exception as e:
             print(f"Error fetching questions: {e}")
             self.questions = []
 
-
+    def _refresh_ui(self, dt):
+        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
+        self.fetch_questions()
+        self.create_ui()
 
     def create_ui(self):
         self.layout.clear_widgets()
 
-        # Set background color for the entire screen
-        with self.layout.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)  # Light gray background
-            self.rect = Rectangle(size=self.layout.size, pos=self.layout.pos)
-        self.layout.bind(size=self._update_rect, pos=self._update_rect)
+        if not self.questions:  # Handle empty list
+            no_questions_label = Label(
+                text="No questions found.",
+                size_hint_y=None,
+                height=dp(50),
+                font_size='18sp',
+                bold=True,
+                color=(0.8, 0.2, 0.2, 1)  # Red color
+            )
+            self.layout.add_widget(no_questions_label)
+            return
 
-        # Create a ScrollView for questions
-        scroll_view = ScrollView(
-            size_hint=(1, 0.8),  # Take up remaining space
-            do_scroll_x=False,  # Disable horizontal scrolling
-            do_scroll_y=True    # Enable vertical scrolling
-        )
-        scroll_content = BoxLayout(
-            orientation='vertical',
-            spacing=10,
-            padding=10,
-            size_hint_y=None
-        )
+        # Add questions to the UI
+        scroll_view = ScrollView(size_hint=(1, 0.8))
+        scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
 
         for question in self.questions:
-            # Create a card for each question
-            question_card = BoxLayout(
-                orientation='vertical',
-                spacing=10,
-                padding=10,
-                size_hint_y=None,
-                #height=dp(300)  # Increased height to accommodate content
-            )
+            question_card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None, height=150)
             with question_card.canvas.before:
-                Color(1, 1, 1, 1)  # White background for the card
-                self.card_rect = RoundedRectangle(size=question_card.size, pos=question_card.pos, radius=[dp(10)])
+                Color(1, 1, 1, 1)
+                RoundedRectangle(size=question_card.size, pos=question_card.pos, radius=[dp(10)])
             question_card.bind(size=self._update_card_rect, pos=self._update_card_rect)
 
-            # Question text
             question_label = Label(
                 text=question['question'],
                 size_hint_y=None,
-                #height=dp(50),  # Increased height for question text
+                height=40,
                 font_size='18sp',
                 bold=True,
-                color=(0, 0, 0, 1),  # Black color
-                halign='center',
-                valign='middle'
-            )
-            question_label.bind(
-                width=lambda *x: question_label.setter('text_size')(question_label, (question_label.width, None))
+                color=(0, 0, 0, 1)
             )
             question_card.add_widget(question_label)
 
-            # Add options with checkboxes
             for option in question['options']:
-                option_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=dp(40))
-                checkbox = CheckBox(size_hint_x=None, width=dp(30), color=[0, 0, 1])
+                option_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=40)
+                checkbox = CheckBox(size_hint_x=None, width=30)
                 checkbox.bind(active=lambda instance, value, qid=question['id'], opt=option: self.on_checkbox_active(qid, opt, value))
                 option_label = Label(
                     text=option,
                     size_hint_x=None,
-                    width=dp(200),
+                    width=200,
                     halign='left',
                     valign='middle',
-                    padding=[dp(10), 0],
+                    padding=[10, 0],
                     font_size='16sp',
-                    color=(0, 0, 0, 1)  # Black text
-                )
-                option_label.bind(
-                    width=lambda *x: option_label.setter('text_size')(option_label, (option_label.width, None)))
+                    color=(0, 0, 0, 1))
+                
                 option_layout.add_widget(checkbox)
                 option_layout.add_widget(option_label)
                 question_card.add_widget(option_layout)
-                            # Calculate total height of the card
-            total_height = question_label.height + len(question['options']) * dp(40) + dp(20)  # Add padding
-            question_card.height = total_height
 
             scroll_content.add_widget(question_card)
 
@@ -456,27 +473,21 @@ class MainScreen(Screen):
         self.layout.add_widget(scroll_view)
 
         # Add Submit and Admin Login buttons
-        button_layout = BoxLayout(
-            orientation='horizontal',
-            size_hint_y=None,
-            height=dp(50),
-            spacing=10,
-            padding=10
-        )
+        button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=10, padding=10)
         submit_button = Button(
             text="Submit",
-            background_color=(0.2, 0.6, 1, 1),  # Blue color
-            color=(1, 1, 1, 1),  # White text
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1),
             size_hint_y=None,
-            height=dp(50)
+            height=50
         )
         submit_button.bind(on_press=self.show_results)
         admin_button = Button(
             text="Admin Login",
-            background_color=(0.8, 0.2, 0.2, 1),  # Red color
-            color=(1, 1, 1, 1),  # White text
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
             size_hint_y=None,
-            height=dp(50)
+            height=50
         )
         admin_button.bind(on_press=self.switch_to_login)
         button_layout.add_widget(submit_button)
@@ -487,12 +498,30 @@ class MainScreen(Screen):
         title_label = Label(
             text="Questionnaire",
             size_hint_y=None,
-            height=dp(50),
+            height=50,
             font_size='24sp',
             bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
+            color=(0.2, 0.6, 1, 1)
         )
         self.layout.add_widget(title_label)
+
+    def start_progress_animation(self):
+        """Start the progress bar animation."""
+        self.progress_bar.value = 0
+        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)  # Update every 0.1 seconds
+
+    def stop_progress_animation(self):
+        """Stop the progress bar animation."""
+        if self.animation_event:
+            self.animation_event.cancel()
+            self.animation_event = None
+
+    def update_progress(self, dt):
+        """Update the progress bar value."""
+        if self.progress_bar.value < self.progress_bar.max:
+            self.progress_bar.value += 1  # Increment progress
+        else:
+            self.stop_progress_animation()  # Stop when progress reaches 100%
 
     def _update_rect(self, instance, value):
         """Update the size and position of the background rectangle."""
@@ -566,29 +595,24 @@ class MainScreen(Screen):
         self.create_ui()
 
     def switch_to_admin(self, instance):
-        self.manager.get_screen("admin").refresh_data(None)
-        self.manager.current = "admin"# Switch to the main screen
-        #self.manager.current = "admin"
+        self.manager.current = "admin"
     def switch_to_login(self, instance):
-        self.manager.get_screen("login").refresh_data(None)
-        self.manager.current = "login"# Switch to the main screen
-        #self.manager.current = "admin"
         self.manager.current = "login"
 
 
-class AdminScreen(Screen):
+class AdminScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.fetch_questions()
+        self.progress_bar = ProgressBar(max=100, value=0)  # Add ProgressBar
+        self.layout.add_widget(self.progress_bar)
         self.create_ui()
         self.add_widget(self.layout)
 
-        
-
     def fetch_questions(self):
         try:
-            self.questions = fetch_questions()
+            self.questions = fetch_questions(App.get_running_app().access_token)
         except Exception as e:
             print(f"Error fetching questions: {e}")
             self.questions = []
@@ -706,6 +730,7 @@ class AdminScreen(Screen):
         with instance.canvas.before:
             Color(1, 1, 1, 1)  # White background for the card
             RoundedRectangle(size=instance.size, pos=instance.pos, radius=[dp(10)])
+
     def edit_question(self, question):
         self.manager.current = "edit_question"
         self.manager.get_screen("edit_question").load_question(question)
@@ -713,29 +738,19 @@ class AdminScreen(Screen):
 
     def delete_question(self, question):
         self.questions.remove(question)
-        if update_github_file(self.questions):
+        if update_github_file(App.get_running_app().access_token, self.questions):
             self.show_popup("Success", "Question deleted and file updated on GitHub.")
-            #self.create_ui()  # Refresh the UI
             self.refresh_data(None)
-            
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
 
-    
-
     def add_question(self, instance):
         self.manager.current = "add_question"
-        
 
     def switch_to_main(self, instance):
-        if self.manager is None:
-            print("Error: self.manager is None")
-            return
         main_screen = self.manager.get_screen("main")
-        if main_screen is None:
-            print("Error: 'main' screen not found")
-            return
-        main_screen.refresh_data(None)
+        if main_screen:
+            main_screen.refresh_data(None)
         self.manager.current = "main"
 
     def show_popup(self, title, message):
@@ -745,7 +760,6 @@ class AdminScreen(Screen):
 
     def refresh_data(self, instance):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        # Schedule the UI update using Clock
         Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
 
     def _refresh_ui(self, dt):
@@ -753,183 +767,354 @@ class AdminScreen(Screen):
         self.fetch_questions()
         self.create_ui()
 
-class AddQuestionScreen(Screen):
+    def start_progress_animation(self):
+        """Start the progress bar animation."""
+        self.progress_bar.value = 0
+        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)  # Update every 0.1 seconds
+
+    def stop_progress_animation(self):
+        """Stop the progress bar animation."""
+        if self.animation_event:
+            self.animation_event.cancel()
+            self.animation_event = None
+
+    def update_progress(self, dt):
+        """Update the progress bar value."""
+        if self.progress_bar.value < self.progress_bar.max:
+            self.progress_bar.value += 1  # Increment progress
+        else:
+            self.stop_progress_animation()  # Stop when progress reaches 100%
+
+
+class AddQuestionScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-
-        self.question_input = TextInput(hint_text="Enter question", multiline=False)
-        self.options_input = TextInput(hint_text="Enter options (comma-separated)", multiline=False)
-        self.answer_input = TextInput(hint_text="Enter correct answers (comma-separated)", multiline=False)
-        self.reference_input = TextInput(hint_text="Enter reference URL", multiline=False)
-
-        self.add_button = Button(text="Add Question", size_hint_y=None, height=50)
-        self.add_button.bind(on_press=self.add_question)
-
-        self.back_button = Button(text="Back to Admin", size_hint_y=None, height=50)
-        self.back_button.bind(on_press=self.switch_to_admin)
-
-        self.layout.add_widget(self.question_input)
-        self.layout.add_widget(self.options_input)
-        self.layout.add_widget(self.answer_input)
-        self.layout.add_widget(self.reference_input)
-        self.layout.add_widget(self.add_button)
-        self.layout.add_widget(self.back_button)
-
+        self.create_ui()
         self.add_widget(self.layout)
 
+    def create_ui(self):
+        self.layout.clear_widgets()
+
+        # Heading
+        heading = Label(
+            text="Add New Question",
+            size_hint_y=None,
+            height=dp(50),
+            font_size='24sp',
+            bold=True,
+            color=(0.2, 0.6, 1, 1)  # Blue color
+        )
+        self.layout.add_widget(heading)
+
+        # Question Input
+        self.question_input = TextInput(
+            hint_text="Enter question",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),  # White background
+            foreground_color=(0, 0, 0, 1)  # Black text
+        )
+        self.layout.add_widget(self.question_input)
+
+        # Options Input
+        self.options_input = TextInput(
+            hint_text="Enter options (comma-separated)",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),  # White background
+            foreground_color=(0, 0, 0, 1)  # Black text
+        )
+        self.layout.add_widget(self.options_input)
+
+        # Answer Input
+        self.answer_input = TextInput(
+            hint_text="Enter correct answers (comma-separated)",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),  # White background
+            foreground_color=(0, 0, 0, 1)  # Black text
+        )
+        self.layout.add_widget(self.answer_input)
+
+        # Reference Input
+        self.reference_input = TextInput(
+            hint_text="Enter reference URL",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),  # White background
+            foreground_color=(0, 0, 0, 1)  # Black text
+        )
+        self.layout.add_widget(self.reference_input)
+
+        # Add Question Button
+        add_button = Button(
+            text="Add Question",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.2, 0.6, 1, 1),  # Blue color
+            color=(1, 1, 1, 1)  # White text
+        )
+        add_button.bind(on_press=self.add_question)
+        self.layout.add_widget(add_button)
+
+        # Back to Admin Button
+        back_button = Button(
+            text="Back to Admin",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.8, 0.2, 0.2, 1),  # Red color
+            color=(1, 1, 1, 1)  # White text
+        )
+        back_button.bind(on_press=self.switch_to_admin)
+        self.layout.add_widget(back_button)
+
     def add_question(self, instance):
-        question = self.question_input.text
-        options = self.options_input.text.split(",")
-        answers = self.answer_input.text.split(",")
-        reference = self.reference_input.text
+        question = self.question_input.text.strip()
+        options = [opt.strip() for opt in self.options_input.text.split(",")]
+        answers = [ans.strip() for ans in self.answer_input.text.split(",")]
+        reference = self.reference_input.text.strip()
+
+        if not question or not options or not answers:
+            self.show_popup("Error", "Please fill in all fields.")
+            return
 
         new_question = {
-            #"id": len(self.manager.get_screen("admin").questions) + 1,
             "id": str(uuid.uuid4()),
             "question": question,
             "options": options,
-            "answers": answers,  # Multiple correct answers
+            "answers": answers,
             "reference": reference
         }
 
-        self.manager.get_screen("admin").questions.append(new_question)
-        if update_github_file(self.manager.get_screen("admin").questions):
+        admin_screen = self.manager.get_screen("admin")
+        admin_screen.questions.append(new_question)
+
+        if update_github_file(App.get_running_app().access_token, admin_screen.questions):
             self.show_popup("Success", "Question added and file updated on GitHub.")
-            main_screen = self.manager.get_screen("admin")
-            main_screen.refresh_data(None)
+            admin_screen.refresh_data(None)
             self.manager.current = "admin"
-            
+        else:
+            self.show_popup("Error", "Failed to update file on GitHub.")
+    def refresh_data(self, instance):
+        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
+        # Schedule the UI update using Clock
+        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
+
+    def switch_to_admin(self, instance):
+        self.manager.current = "admin"
+
+    def _refresh_ui(self, dt):
+        """Rebuild the UI."""
+        self.create_ui()
+    def add_question(self, instance):
+        question = self.question_input.text.strip()
+        options = [opt.strip() for opt in self.options_input.text.split(",")]
+        answers = [ans.strip() for ans in self.answer_input.text.split(",")]
+        reference = self.reference_input.text.strip()
+
+        if not question or not options or not answers:
+            self.show_popup("Error", "Please fill in all fields.")
+            return
+
+        new_question = {
+            "id": str(uuid.uuid4()),
+            "question": question,
+            "options": options,
+            "answers": answers,
+            "reference": reference
+        }
+
+        admin_screen = self.manager.get_screen("admin")
+        admin_screen.questions.append(new_question)
+
+        if update_github_file(App.get_running_app().access_token,admin_screen.questions):
+            self.show_popup("Success", "Question added and file updated on GitHub.")
+            admin_screen.refresh_data(None)
+            self.manager.current = "admin"
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
 
     def switch_to_admin(self, instance):
-        if self.manager is None:
-            print("Error: self.manager is None")
-            return
-        main_screen = self.manager.get_screen("admin")
-        if main_screen is None:
-            print("Error: 'main' screen not found")
-            return
-        main_screen.refresh_data(None)
         self.manager.current = "admin"
 
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
+    def _refresh_ui(self, dt):
+        """Rebuild the UI."""
+        self.create_ui()
 
 
-
-class EditQuestionScreen(Screen):
+class EditQuestionScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-
-        self.question_input = TextInput(hint_text="Enter question", multiline=False)
-        self.options_input = TextInput(hint_text="Enter options (comma-separated)", multiline=False)
-        self.answer_input = TextInput(hint_text="Enter correct answers (comma-separated)", multiline=False)
-        self.reference_input = TextInput(hint_text="Enter reference URL", multiline=False)
-
-        self.save_button = Button(text="Save Changes", size_hint_y=None, height=50)
-        self.save_button.bind(on_press=self.save_question)
-
-        self.back_button = Button(text="Back to Admin", size_hint_y=None, height=50)
-        self.back_button.bind(on_press=self.switch_to_admin)
-
-        self.layout.add_widget(self.question_input)
-        self.layout.add_widget(self.options_input)
-        self.layout.add_widget(self.answer_input)
-        self.layout.add_widget(self.reference_input)
-        self.layout.add_widget(self.save_button)
-        self.layout.add_widget(self.back_button)
-
+        self.create_ui()
         self.add_widget(self.layout)
+
+    def create_ui(self):
+        self.layout.clear_widgets()
+
+        # Heading
+        heading = Label(
+            text="Edit Question",
+            size_hint_y=None,
+            height=dp(50),
+            font_size='24sp',
+            bold=True,
+            color=(0.2, 0.6, 1, 1)  # Blue color
+        )
+        self.layout.add_widget(heading)
+
+        # Question Input
+        self.question_input = TextInput(
+            hint_text="Enter question",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
+        )
+        self.layout.add_widget(self.question_input)
+
+        # Options Input
+        self.options_input = TextInput(
+            hint_text="Enter options (comma-separated)",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
+        )
+        self.layout.add_widget(self.options_input)
+
+        # Answer Input
+        self.answer_input = TextInput(
+            hint_text="Enter correct answers (comma-separated)",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
+        )
+        self.layout.add_widget(self.answer_input)
+
+        # Reference Input
+        self.reference_input = TextInput(
+            hint_text="Enter reference URL",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
+        )
+        self.layout.add_widget(self.reference_input)
+
+        # Save Changes Button
+        save_button = Button(
+            text="Save Changes",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1)
+        )
+        save_button.bind(on_press=self.save_question)
+        self.layout.add_widget(save_button)
+
+        # Back to Admin Button
+        back_button = Button(
+            text="Back to Admin",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1)
+        )
+        back_button.bind(on_press=self.switch_to_admin)
+        self.layout.add_widget(back_button)
 
     def load_question(self, question):
         self.question = question
         self.question_input.text = question['question']
-        self.options_input.text = ",".join(question['options'])
-        self.answer_input.text = ",".join(question['answers'])
+        self.options_input.text = ", ".join(question['options'])
+        self.answer_input.text = ", ".join(question['answers'])
         self.reference_input.text = question['reference']
 
     def save_question(self, instance):
-        self.question['question'] = self.question_input.text
-        self.question['options'] = self.options_input.text.split(",")
-        self.question['answers'] = self.answer_input.text.split(",")
-        self.question['reference'] = self.reference_input.text
+        # Update the question data
+        self.question['question'] = self.question_input.text.strip()
+        self.question['options'] = [opt.strip() for opt in self.options_input.text.split(",")]
+        self.question['answers'] = [ans.strip() for ans in self.answer_input.text.split(",")]
+        self.question['reference'] = self.reference_input.text.strip()
 
-        if update_github_file(self.manager.get_screen("admin").questions):
+        # Get the AdminScreen instance
+        admin_screen = self.manager.get_screen("admin")
+
+        # Update the questions list in AdminScreen
+        for i, q in enumerate(admin_screen.questions):
+            if q['id'] == self.question['id']:
+                admin_screen.questions[i] = self.question
+                break
+
+        # Update the file on GitHub
+        if update_github_file(App.get_running_app().access_token, admin_screen.questions):
             self.show_popup("Success", "Question updated and file updated on GitHub.")
+            admin_screen.refresh_data(None)  # Refresh the AdminScreen UI
+            self.manager.current = "admin"
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
 
     def switch_to_admin(self, instance):
-        if self.manager is None:
-            print("Error: self.manager is None")
-            return
-        main_screen = self.manager.get_screen("admin")
-        if main_screen is None:
-            print("Error: 'main' screen not found")
-            return
-        main_screen.refresh_data(None)
         self.manager.current = "admin"
-
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-
 class QuestionnaireApp(App):
     def build(self):
         self.screen_manager = ScreenManager()
+        self.access_token = load_access_token()
         self.questions = []
         self.selected_answers = {}
-        token = load_access_token()
-        if token:
+
+        if self.access_token:
             # If token exists, go directly to the main screen
             self.main_screen = MainScreen(name="main")
             self.screen_manager.add_widget(self.main_screen)
-        
+
             self.admin_screen = AdminScreen(name="admin")
             self.login_screen = LoginScreen(name="login")
             self.add_question_screen = AddQuestionScreen(name="add_question")
             self.edit_question_screen = EditQuestionScreen(name="edit_question")
-            #self.registration_screen = MainScreen(name="registration")
-
-            
             self.screen_manager.add_widget(self.admin_screen)
             self.screen_manager.add_widget(self.login_screen)
             self.screen_manager.add_widget(self.add_question_screen)
             self.screen_manager.add_widget(self.edit_question_screen)
+
+
         else:
             # If no token, show the registration screen
             self.registration_screen = RegistrationScreen(name="registration")
             self.screen_manager.add_widget(self.registration_screen)
-           
-            self.main_screen = MainScreen(name="main")
-            self.screen_manager.add_widget(self.main_screen)
-            self.admin_screen = AdminScreen(name="admin")
-            self.login_screen = LoginScreen(name="login")
-            self.add_question_screen = AddQuestionScreen(name="add_question")
-            self.edit_question_screen = EditQuestionScreen(name="edit_question")
-            #self.registration_screen = MainScreen(name="registration")
+ 
 
             
-            self.screen_manager.add_widget(self.admin_screen)
-            self.screen_manager.add_widget(self.login_screen)
-            self.screen_manager.add_widget(self.add_question_screen)
-            self.screen_manager.add_widget(self.edit_question_screen)
+ 
 
-
-       
-        
-
-      
+ 
 
         return self.screen_manager
+    
+    def refresh_all_screens(self):
+        for screen_name in self.screen_manager.screen_names:
+            screen = self.screen_manager.get_screen(screen_name)
+            if hasattr(screen, 'refresh_data'):
+                screen.refresh_data(None)
 
 if __name__ == '__main__':
     main_app = QuestionnaireApp()
