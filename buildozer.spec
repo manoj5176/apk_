@@ -1,4 +1,4 @@
-```ini
+
 # This .spec config file tells Buildozer an app's requirements for being built.
 #
 # It largely follows the syntax of an .ini file.
