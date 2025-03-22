@@ -18,11 +18,13 @@ from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.anchorlayout import AnchorLayout
+from kivy.core.window import Window
 import sys
 
 # GitHub API details
 # File to store the access token
-CONFIG_FILE = "config54.json"
+CONFIG_FILE = "config55.json"
 def load_access_token():
     """Load the access token from the config file."""
     if os.path.exists(CONFIG_FILE):
@@ -58,21 +60,38 @@ class RegistrationScreen(Screen):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
         self.create_ui()
+
+        # Bind keyboard events
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
+
+        # Add the layout to the screen
         self.add_widget(self.layout)
 
     def create_ui(self):
         self.layout.clear_widgets()
 
-        # Heading
-        heading = Label(
-            text="Device Registration",
-            size_hint_y=None,
-            height=dp(50),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
-        )
-        self.layout.add_widget(heading)
+        # Add a ScrollView for other content (if needed)
+        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height * 0.7))
+        self.content_layout = BoxLayout(orientation='vertical', size_hint_y=None)
+        self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
+        self.scroll_view.add_widget(self.content_layout)
+
+        # Add some example content (optional)
+        for i in range(5):
+            self.content_layout.add_widget(Label(
+                text=f"Sample Content {i}",
+                size_hint_y=None,
+                height=dp(50),
+                font_size='18sp',
+                color=(0, 0, 0, 1)
+            ))
+
+        self.layout.add_widget(self.scroll_view)
+
+        # Add an AnchorLayout to keep the registration form at the bottom
+        self.anchor_layout = AnchorLayout(anchor_y='bottom', size_hint_y=None, height=dp(150))
+        self.form_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(150), spacing=10)
 
         # Token Input
         self.token_input = TextInput(
@@ -84,7 +103,7 @@ class RegistrationScreen(Screen):
             background_color=(1, 1, 1, 1),  # White background
             foreground_color=(0, 0, 0, 1)  # Black text
         )
-        self.layout.add_widget(self.token_input)
+        self.form_layout.add_widget(self.token_input)
 
         # Register Button
         register_button = Button(
@@ -95,7 +114,23 @@ class RegistrationScreen(Screen):
             color=(1, 1, 1, 1)  # White text
         )
         register_button.bind(on_press=self.register_device)
-        self.layout.add_widget(register_button)
+        self.form_layout.add_widget(register_button)
+
+        self.anchor_layout.add_widget(self.form_layout)
+        self.layout.add_widget(self.anchor_layout)
+
+    def on_keyboard(self, window, key, *args):
+        # Handle keyboard events (optional)
+        pass
+
+    def on_keyboard_height(self, window, height):
+        # Adjust the ScrollView height when the keyboard opens/closes
+        if height > 0:
+            # Keyboard is open
+            self.scroll_view.height = Window.height - height - dp(150)  # Subtract the form height
+        else:
+            # Keyboard is closed
+            self.scroll_view.height = Window.height * 0.7  # Reset to original height
 
     def register_device(self, instance):
         token = self.token_input.text.strip()
