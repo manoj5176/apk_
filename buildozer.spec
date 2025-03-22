@@ -155,7 +155,7 @@ android.accept_sdk_license = True
 # use that parameter to provide a filename from where to load your custom XML code
 #android.extra_manifest_xml = ./src/android/extra_manifest.xml
 
-android.manifest_placeholders = [android_windowSoftInputMode="adjustResize|stateHidden"]
+#android.manifest_placeholders = [android_windowSoftInputMode="adjustResize|stateHidden"]
 
 # (str) Extra xml to write directly inside the <manifest><application> tag of AndroidManifest.xml
 # use that parameter to provide a filename from where to load your custom XML arguments:
