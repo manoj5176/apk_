@@ -71,8 +71,8 @@ class RegistrationScreen(Screen):
     def create_ui(self):
         self.layout.clear_widgets()
 
-        # Add a ScrollView for other content (if needed)
-        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height * 0.7))
+        # Add a ScrollView for the main content
+        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height))
         self.content_layout = BoxLayout(orientation='vertical', size_hint_y=None)
         self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
         self.scroll_view.add_widget(self.content_layout)
@@ -124,13 +124,15 @@ class RegistrationScreen(Screen):
         pass
 
     def on_keyboard_height(self, window, height):
-        # Adjust the ScrollView height when the keyboard opens/closes
+        # Adjust the layout when the keyboard opens/closes
         if height > 0:
             # Keyboard is open
             self.scroll_view.height = Window.height - height - dp(150)  # Subtract the form height
+            self.anchor_layout.y = height  # Move the form above the keyboard
         else:
             # Keyboard is closed
-            self.scroll_view.height = Window.height * 0.7  # Reset to original height
+            self.scroll_view.height = Window.height  # Reset to full height
+            self.anchor_layout.y = 0  # Reset the form position
 
     def register_device(self, instance):
         token = self.token_input.text.strip()
@@ -154,7 +156,6 @@ class RegistrationScreen(Screen):
         popup = Popup(title=title, size_hint=(0.8, 0.4))
         popup.content = Label(text=message)
         popup.open()
-
 def restart_app():
     """Restart the application."""
     python = sys.executable  # Get the current Python interpreter
