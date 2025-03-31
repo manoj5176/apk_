@@ -487,7 +487,7 @@ class MainScreen(BaseScreen):
 
             for option in question['options']:
                 option_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=40)
-                checkbox = CheckBox(size_hint_x=None, width=30)
+                checkbox = CheckBox(size_hint_x=None, width=30,color=(0.1, 0.1, 0.1, 1))
                 checkbox.bind(active=lambda instance, value, qid=question['id'], opt=option: self.on_checkbox_active(qid, opt, value))
                 option_label = Label(
                     text=option,
@@ -495,9 +495,10 @@ class MainScreen(BaseScreen):
                     width=200,
                     halign='left',
                     valign='middle',
+                    bold=True,
                     padding=[10, 0],
                     font_size='16sp',
-                    color=(0, 0, 0, 1))
+                    color= (0.1, 0.1, 0.1, 1))
                 
                 option_layout.add_widget(checkbox)
                 option_layout.add_widget(option_label)
@@ -1119,7 +1120,6 @@ class QuestionnaireApp(App):
         self.selected_answers = {}
 
         if self.access_token:
-            # If token exists, go directly to the main screen
             self.main_screen = MainScreen(name="main")
             self.screen_manager.add_widget(self.main_screen)
 
@@ -1131,26 +1131,38 @@ class QuestionnaireApp(App):
             self.screen_manager.add_widget(self.login_screen)
             self.screen_manager.add_widget(self.add_question_screen)
             self.screen_manager.add_widget(self.edit_question_screen)
-
-
         else:
-            # If no token, show the registration screen
             self.registration_screen = RegistrationScreen(name="registration")
             self.screen_manager.add_widget(self.registration_screen)
- 
 
-            
- 
-
- 
+        # Bind keyboard events
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
 
         return self.screen_manager
-    
+
     def refresh_all_screens(self):
         for screen_name in self.screen_manager.screen_names:
             screen = self.screen_manager.get_screen(screen_name)
             if hasattr(screen, 'refresh_data'):
                 screen.refresh_data(None)
+
+    def on_keyboard(self, window, key, *args):
+        # Handle keyboard events (optional)
+        pass
+
+    def on_keyboard_height(self, window, height):
+        # Adjust the layout when the keyboard opens/closes
+        current_screen = self.screen_manager.current_screen
+        if height > 0:
+            # Keyboard is open
+            if isinstance(current_screen, MainScreen) or isinstance(current_screen, RegistrationScreen):
+                current_screen.layout.height = Window.height - height
+            else:
+                current_screen.layout.height = Window.height - height - dp(150)
+        else:
+            # Keyboard is closed
+            current_screen.layout.height = Window.height
 
 if __name__ == '__main__':
     main_app = QuestionnaireApp()
