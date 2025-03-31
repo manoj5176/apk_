@@ -567,7 +567,7 @@ class QuestionCard(BoxLayout):
         self.question_label = Label(
             text=question['question'],
             size_hint_y=None,
-            font_size='18sp',
+            font_size='20sp',
             bold=True,
             color=(0, 0, 0, 1)
         )
@@ -586,7 +586,7 @@ class QuestionCard(BoxLayout):
                 valign='middle',
                 bold=True,
                 padding=[10, 0],
-                font_size='16sp',
+                font_size='20sp',
                 color=(0.1, 0.1, 0.1, 1)
             )
             option_label.bind(texture_size=self.update_height)
@@ -641,7 +641,7 @@ class MainScreen(BaseScreen):
                 text="No questions found.",
                 size_hint_y=None,
                 height=dp(50),
-                font_size='18sp',
+                font_size='22sp',
                 bold=True,
                 color=(0.8, 0.2, 0.2, 1)  # Red color
             )
@@ -865,7 +865,7 @@ class AdminScreen(BaseScreen):
                 text=question['question'],
                 size_hint_y=None,
                 height=40,
-                font_size='18sp',
+                font_size='20sp',
                 bold=True,
                 color=(0, 0, 0, 1)  # Black color
             )
@@ -876,7 +876,7 @@ class AdminScreen(BaseScreen):
                 text="Options: " + ", ".join(question['options']),
                 size_hint_y=None,
                 height=30,
-                font_size='14sp',
+                font_size='20sp',
                 color=(0.4, 0.4, 0.4, 1)  # Gray color
             )
             question_card.add_widget(options_label)
@@ -886,7 +886,7 @@ class AdminScreen(BaseScreen):
             edit_button = Button(
                 text="Edit",
                 size_hint_x=None,
-                width=100,
+                width=dp(50),
                 background_color=(0.2, 0.8, 0.2, 1),  # Green color
                 color=(1, 1, 1, 1)  # White text
             )
@@ -894,7 +894,7 @@ class AdminScreen(BaseScreen):
             delete_button = Button(
                 text="Delete",
                 size_hint_x=None,
-                width=100,
+                width=dp(50),
                 background_color=(0.8, 0.2, 0.2, 1),  # Red color
                 color=(1, 1, 1, 1)  # White text
             )
