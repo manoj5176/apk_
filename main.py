@@ -60,6 +60,90 @@ class RegistrationScreen(Screen):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
         self.create_ui()
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
+        self.add_widget(self.layout)
+
+    def create_ui(self):
+        self.layout.clear_widgets()
+        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height))
+        self.content_layout = BoxLayout(orientation='vertical', size_hint_y=None)
+        self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
+        self.scroll_view.add_widget(self.content_layout)
+
+        for i in range(5):
+            self.content_layout.add_widget(Label(
+                text=f"Sample Content {i}",
+                size_hint_y=None,
+                height=dp(50),
+                font_size='18sp',
+                color=(0, 0, 0, 1)
+            ))
+
+        self.layout.add_widget(self.scroll_view)
+        self.anchor_layout = AnchorLayout(anchor_y='bottom', size_hint_y=None, height=dp(150))
+        self.form_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(150), spacing=10)
+        self.token_input = TextInput(
+            hint_text="Enter Access Token",
+            multiline=False,
+            size_hint_y=None,
+            height=dp(40),
+            padding=[10, 0],
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
+        )
+        self.form_layout.add_widget(self.token_input)
+        register_button = Button(
+            text="Register",
+            size_hint_y=None,
+            height=dp(50),
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1)
+        )
+        register_button.bind(on_press=self.register_device)
+        self.form_layout.add_widget(register_button)
+        self.anchor_layout.add_widget(self.form_layout)
+        self.layout.add_widget(self.anchor_layout)
+
+    def on_keyboard(self, window, key, *args):
+        if key == 27:  # Escape key
+            return True
+        return False
+
+    def on_keyboard_height(self, window, height):
+        if height > 0:
+            self.scroll_view.height = Window.height - height - dp(150)
+            self.anchor_layout.y = height
+        else:
+            self.scroll_view.height = Window.height
+            self.anchor_layout.y = 0
+
+    def register_device(self, instance):
+        token = self.token_input.text.strip()
+        if not token:
+            self.show_popup("Error", "Access token cannot be empty.")
+            return
+        if save_access_token(token):
+            self.show_popup("Success", "Device registered successfully!")
+            app = App.get_running_app()
+            app.access_token = token
+            app.refresh_all_screens()
+            Clock.schedule_once(lambda dt: restart_app(), 1)
+        else:
+            self.show_popup("Error", "Failed to save access token.")
+
+    def show_popup(self, title, message):
+        popup = Popup(title=title, size_hint=(0.8, 0.4))
+        popup.content = Label(text=message)
+        popup.open()
+
+def restart_app():
+    python = sys.executable
+    os.execl(python, python, *sys.argv)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.create_ui()
 
         # Bind keyboard events
         Window.bind(on_keyboard=self.on_keyboard)
@@ -247,6 +331,10 @@ class LoginScreen(BaseScreen):
         except Exception as e:
             print(f"Error fetching admin credentials: {e}")
         ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
+
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
+
     def _refresh_ui(self, dt):
         """Clear input fields when the screen is opened."""
         self.username_input.text = ""
@@ -313,6 +401,17 @@ class LoginScreen(BaseScreen):
         skip_button.bind(on_press=self.backtomain)
         self.layout.add_widget(skip_button)
 
+    def on_keyboard(self, window, key, *args):
+        if key == 27:  # Escape key
+            return True
+        return False
+
+    def on_keyboard_height(self, window, height):
+        if height > 0:
+            self.layout.height = Window.height - height
+        else:
+            self.layout.height = Window.height
+
     def authenticate(self, instance):
         username = self.username_input.text
         password = self.password_input.text
@@ -325,22 +424,6 @@ class LoginScreen(BaseScreen):
 
     def backtomain(self, instance):
         self.manager.current = 'main'
-    
-
-
-
-
-    def authenticate(self, instance):
-        username = self.username_input.text
-        password = self.password_input.text
-
-        if username == ADMIN_CREDENTIALS["username"] and password == ADMIN_CREDENTIALS["password"]:
-            self.show_popup("Success", "Login successful!")
-            self.manager.current = "admin"
-            
-        else:
-            self.show_popup("Error", "Invalid username or password")
-            self.manager.current='main'
 
     def show_popup(self, title, message):
         popup = Popup(title=title, size_hint=(0.8, 0.4))
@@ -348,16 +431,13 @@ class LoginScreen(BaseScreen):
         self.refresh_data(None)
         popup.open()
 
-    def switch_to_login(self, instance):
-        self.manager.current = "login"
-
     def refresh_data(self, instance):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
         # Schedule the UI update using Clock
         Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
+
     def _refresh_ui(self, dt):
         """Internal method to refresh the UI."""
-       
         self.create_ui()
 
 
@@ -424,7 +504,71 @@ def update_github_file(token,questions):
             raise Exception("The 'sha' key is missing in the API response.")
     else:
         raise Exception(f"Failed to fetch file details from GitHub: {response.status_code} - {response.text}")
+    
 
+from kivy.uix.widget import Widget
+
+class QuestionCard(BoxLayout):
+    def __init__(self, question, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'vertical'
+        self.spacing = 10
+        self.padding = 10
+        self.size_hint_y = None
+        self.bind(minimum_height=self.setter('height'))
+
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self.rect = RoundedRectangle(size=self.size, pos=self.pos, radius=[dp(10)])
+        self.bind(size=self._update_rect, pos=self._update_rect)
+
+        self.question_id = question['id']
+        self.question_label = Label(
+            text=question['question'],
+            size_hint_y=None,
+            font_size='18sp',
+            bold=True,
+            color=(0, 0, 0, 1)
+        )
+        self.question_label.bind(texture_size=self.update_height)
+        self.add_widget(self.question_label)
+
+        self.option_layouts = []
+        for option in question['options']:
+            option_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=40)
+            checkbox = CheckBox(size_hint_x=None, width=30, color=(0.1, 0.1, 0.1, 1))
+            checkbox.bind(active=lambda instance, value, opt=option: self.on_checkbox_active(instance, value, opt))
+            option_label = Label(
+                text=option,
+                size_hint_x=None,
+                halign='left',
+                valign='middle',
+                bold=True,
+                padding=[10, 0],
+                font_size='16sp',
+                color=(0.1, 0.1, 0.1, 1)
+            )
+            option_label.bind(texture_size=self.update_height)
+
+            option_layout.add_widget(checkbox)
+            option_layout.add_widget(option_label)
+            self.add_widget(option_layout)
+            self.option_layouts.append((option, checkbox))
+
+    def _update_rect(self, instance, value):
+        self.rect.size = instance.size
+        self.rect.pos = instance.pos
+
+    def update_height(self, *args):
+        self.height = self.minimum_height
+
+    def on_checkbox_active(self, checkbox, value, option):
+        parent_screen = self.parent.parent.parent.parent
+        if value:
+            parent_screen.user_answers.setdefault(self.question_id, []).append((option, checkbox))
+        else:
+            parent_screen.user_answers[self.question_id].remove((option, checkbox))
+        parent_screen.update_selected_options(self.question_id)
 class MainScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -464,50 +608,18 @@ class MainScreen(BaseScreen):
             return
 
         # Add questions to the UI
-        scroll_view = ScrollView(size_hint=(1, 0.8))
-        scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
-        scroll_content.bind(minimum_height=scroll_content.setter('height'))
+        self.scroll_view = ScrollView(size_hint=(1, 0.8))
+        self.scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
+        self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
 
+        self.question_cards = []
         for question in self.questions:
-            question_card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None, height=150)
-            with question_card.canvas.before:
-                Color(1, 1, 1, 1)
-                RoundedRectangle(size=question_card.size, pos=question_card.pos, radius=[dp(10)])
-            question_card.bind(size=self._update_card_rect, pos=self._update_card_rect)
+            question_card = QuestionCard(question)
+            self.scroll_content.add_widget(question_card)
+            self.question_cards.append(question_card)
 
-            question_label = Label(
-                text=question['question'],
-                size_hint_y=None,
-                height=40,
-                font_size='18sp',
-                bold=True,
-                color=(0, 0, 0, 1)
-            )
-            question_card.add_widget(question_label)
-
-            for option in question['options']:
-                option_layout = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=40)
-                checkbox = CheckBox(size_hint_x=None, width=30,color=(0.1, 0.1, 0.1, 1))
-                checkbox.bind(active=lambda instance, value, qid=question['id'], opt=option: self.on_checkbox_active(qid, opt, value))
-                option_label = Label(
-                    text=option,
-                    size_hint_x=None,
-                    width=200,
-                    halign='left',
-                    valign='middle',
-                    bold=True,
-                    padding=[10, 0],
-                    font_size='16sp',
-                    color= (0.1, 0.1, 0.1, 1))
-                
-                option_layout.add_widget(checkbox)
-                option_layout.add_widget(option_label)
-                question_card.add_widget(option_layout)
-
-            scroll_content.add_widget(question_card)
-
-        scroll_view.add_widget(scroll_content)
-        self.layout.add_widget(scroll_view)
+        self.scroll_view.add_widget(self.scroll_content)
+        self.layout.add_widget(self.scroll_view)
 
         # Add Submit and Admin Login buttons
         button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=10, padding=10)
@@ -565,24 +677,12 @@ class MainScreen(BaseScreen):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
 
-    def _update_card_rect(self, instance, value):
-        """Update the size and position of the card's rounded rectangle."""
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(1, 1, 1, 1)  # White background for the card
-            RoundedRectangle(size=instance.size, pos=instance.pos, radius=[dp(10)])
-
-    def update_card_height(self, card, label):
-        """Update the height of the card based on the label's texture size."""
-        if label.texture_size[1] > dp(100):  # If text wraps and requires more height
-            card.height += label.texture_size[1] - dp(100)  # Adjust card height
-    def on_checkbox_active(self, question_id, option, value):
-        if question_id not in self.user_answers:
-            self.user_answers[question_id] = []
-        if value:  # Checkbox is checked
-            self.user_answers[question_id].append(option)
-        else:  # Checkbox is unchecked
-            self.user_answers[question_id].remove(option)
+    def update_selected_options(self, question_id):
+        selected_options = self.user_answers.get(question_id, [])
+        for question_card in self.question_cards:
+            if question_card.question_id == question_id:
+                for option, checkbox in question_card.option_layouts:
+                    checkbox.active = (option, checkbox) in selected_options
 
     def show_results(self, instance):
         correct_count = 0
@@ -590,7 +690,7 @@ class MainScreen(BaseScreen):
 
         for question in self.questions:
             question_id = question['id']
-            user_answers = self.user_answers.get(question_id, [])
+            user_answers = [option for option, checkbox in self.user_answers.get(question_id, []) if checkbox.active]
             correct_answers = question['answers']
             is_correct = set(user_answers) == set(correct_answers)  # Compare sets for multiple answers
 
@@ -635,8 +735,6 @@ class MainScreen(BaseScreen):
         self.manager.current = "admin"
     def switch_to_login(self, instance):
         self.manager.current = "login"
-
-
 class AdminScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -830,6 +928,9 @@ class AddQuestionScreen(BaseScreen):
         self.create_ui()
         self.add_widget(self.layout)
 
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
+
     def create_ui(self):
         self.layout.clear_widgets()
 
@@ -851,8 +952,8 @@ class AddQuestionScreen(BaseScreen):
             size_hint_y=None,
             height=dp(40),
             padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
         )
         self.layout.add_widget(self.question_input)
 
@@ -863,8 +964,8 @@ class AddQuestionScreen(BaseScreen):
             size_hint_y=None,
             height=dp(40),
             padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
         )
         self.layout.add_widget(self.options_input)
 
@@ -875,8 +976,8 @@ class AddQuestionScreen(BaseScreen):
             size_hint_y=None,
             height=dp(40),
             padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
         )
         self.layout.add_widget(self.answer_input)
 
@@ -887,8 +988,8 @@ class AddQuestionScreen(BaseScreen):
             size_hint_y=None,
             height=dp(40),
             padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1)
         )
         self.layout.add_widget(self.reference_input)
 
@@ -897,8 +998,8 @@ class AddQuestionScreen(BaseScreen):
             text="Add Question",
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),  # Blue color
-            color=(1, 1, 1, 1)  # White text
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1)
         )
         add_button.bind(on_press=self.add_question)
         self.layout.add_widget(add_button)
@@ -908,11 +1009,22 @@ class AddQuestionScreen(BaseScreen):
             text="Back to Admin",
             size_hint_y=None,
             height=dp(50),
-            background_color=(0.8, 0.2, 0.2, 1),  # Red color
-            color=(1, 1, 1, 1)  # White text
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1)
         )
         back_button.bind(on_press=self.switch_to_admin)
         self.layout.add_widget(back_button)
+
+    def on_keyboard(self, window, key, *args):
+        if key == 27:  # Escape key
+            return True
+        return False
+
+    def on_keyboard_height(self, window, height):
+        if height > 0:
+            self.layout.height = Window.height - height
+        else:
+            self.layout.height = Window.height
 
     def add_question(self, instance):
         question = self.question_input.text.strip()
@@ -941,59 +1053,23 @@ class AddQuestionScreen(BaseScreen):
             self.manager.current = "admin"
         else:
             self.show_popup("Error", "Failed to update file on GitHub.")
-    def refresh_data(self, instance):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        # Schedule the UI update using Clock
-        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
 
     def switch_to_admin(self, instance):
         self.manager.current = "admin"
 
-    def _refresh_ui(self, dt):
-        """Rebuild the UI."""
-        self.create_ui()
-    def add_question(self, instance):
-        question = self.question_input.text.strip()
-        options = [opt.strip() for opt in self.options_input.text.split(",")]
-        answers = [ans.strip() for ans in self.answer_input.text.split(",")]
-        reference = self.reference_input.text.strip()
-
-        if not question or not options or not answers:
-            self.show_popup("Error", "Please fill in all fields.")
-            return
-
-        new_question = {
-            "id": str(uuid.uuid4()),
-            "question": question,
-            "options": options,
-            "answers": answers,
-            "reference": reference
-        }
-
-        admin_screen = self.manager.get_screen("admin")
-        admin_screen.questions.append(new_question)
-
-        if update_github_file(App.get_running_app().access_token,admin_screen.questions):
-            self.show_popup("Success", "Question added and file updated on GitHub.")
-            admin_screen.refresh_data(None)
-            self.manager.current = "admin"
-        else:
-            self.show_popup("Error", "Failed to update file on GitHub.")
-
-    def switch_to_admin(self, instance):
-        self.manager.current = "admin"
-
-    def _refresh_ui(self, dt):
-        """Rebuild the UI."""
-        self.create_ui()
-
-
+    def show_popup(self, title, message):
+        popup = Popup(title=title, size_hint=(0.8, 0.4))
+        popup.content = Label(text=message)
+        popup.open()
 class EditQuestionScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
         self.create_ui()
         self.add_widget(self.layout)
+
+        Window.bind(on_keyboard=self.on_keyboard)
+        Window.bind(on_keyboard_height=self.on_keyboard_height)
 
     def create_ui(self):
         self.layout.clear_widgets()
@@ -1079,6 +1155,17 @@ class EditQuestionScreen(BaseScreen):
         back_button.bind(on_press=self.switch_to_admin)
         self.layout.add_widget(back_button)
 
+    def on_keyboard(self, window, key, *args):
+        if key == 27:  # Escape key
+            return True
+        return False
+
+    def on_keyboard_height(self, window, height):
+        if height > 0:
+            self.layout.height = Window.height - height
+        else:
+            self.layout.height = Window.height
+
     def load_question(self, question):
         self.question = question
         self.question_input.text = question['question']
@@ -1112,7 +1199,12 @@ class EditQuestionScreen(BaseScreen):
 
     def switch_to_admin(self, instance):
         self.manager.current = "admin"
-class QuestionnaireApp(App):
+
+    def show_popup(self, title, message):
+        popup = Popup(title=title, size_hint=(0.8, 0.4))
+        popup.content = Label(text=message)
+        popup.open()
+class MainApp(App):
     def build(self):
         self.screen_manager = ScreenManager()
         self.access_token = load_access_token()
@@ -1135,7 +1227,6 @@ class QuestionnaireApp(App):
             self.registration_screen = RegistrationScreen(name="registration")
             self.screen_manager.add_widget(self.registration_screen)
 
-        # Bind keyboard events
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
 
@@ -1148,22 +1239,21 @@ class QuestionnaireApp(App):
                 screen.refresh_data(None)
 
     def on_keyboard(self, window, key, *args):
-        # Handle keyboard events (optional)
         pass
 
     def on_keyboard_height(self, window, height):
-        # Adjust the layout when the keyboard opens/closes
         current_screen = self.screen_manager.current_screen
         if height > 0:
-            # Keyboard is open
             if isinstance(current_screen, MainScreen) or isinstance(current_screen, RegistrationScreen):
-                current_screen.layout.height = Window.height - height
+                current_screen.scroll_view.height = Window.height - height - dp(150)
+                current_screen.anchor_layout.y = height
             else:
-                current_screen.layout.height = Window.height - height - dp(150)
+                current_screen.scroll_view.height = Window.height - height
+                current_screen.anchor_layout.y = height
         else:
-            # Keyboard is closed
-            current_screen.layout.height = Window.height
+            current_screen.scroll_view.height = Window.height
+            current_screen.anchor_layout.y = 0
 
 if __name__ == '__main__':
-    main_app = QuestionnaireApp()
+    main_app = MainApp()
     main_app.run()
