@@ -52,7 +52,36 @@ CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
 CREDENTIALS_FILE = "admin.json"
 CREDENTIALS_FILE1 = "admin_credentials.json"
 BRANCH = "main"
+def check_internet():
+    """Check internet connection with timeout"""
+    try:
+        response = requests.get("https://www.google.com", timeout=5)
+        return True
+    except (requests.ConnectionError, requests.Timeout):
+        return False
 
+def show_no_internet_popup():
+    """Show popup that closes the app when no internet"""
+    def close_app(_):
+        App.get_running_app().stop()
+        sys.exit(0)
+
+    content = BoxLayout(orientation='vertical', padding=10)
+    content.add_widget(Label(
+        text="No Internet Connection\nApp will close",
+        halign='center'
+    ))
+    close_btn = Button(text="OK", size_hint=(1, 0.4))
+    close_btn.bind(on_press=close_app)
+    content.add_widget(close_btn)
+
+    popup = Popup(
+        title="Connection Error",
+        content=content,
+        size_hint=(0.7, 0.4),
+        auto_dismiss=False
+    )
+    popup.open()
 
 # Registration Screen
 class RegistrationScreen(Screen):
@@ -302,6 +331,12 @@ except Exception as e:
     ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
 # Base Screen Class
 class BaseScreen(Screen):
+    def on_pre_enter(self, *args):
+        if not check_internet():
+            show_no_internet_popup()
+            return False
+        return True
+
     def show_loading(self, message="Loading..."):
         self.loading_popup = Popup(title=message, size_hint=(0.6, 0.2))
         self.loading_popup.content = ProgressBar()
@@ -614,7 +649,7 @@ class MainScreen(BaseScreen):
             return
 
         # Add questions to the UI
-        self.scroll_view = ScrollView(size_hint=(1, 0.8))
+        self.scroll_view = ScrollView(size_hint=(1, 0.8), size=(Window.width, Window.height))
         self.scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
         self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
 
@@ -720,12 +755,47 @@ class MainScreen(BaseScreen):
                 f"Reference: {result['reference']}\n\n"
             )
         
-        popup = Popup(title='Results', size_hint=(0.8, 0.8))
-        popup.content = Label(text=result_text, size_hint=(1, 1))
-        popup.open()
+        self.show_fitting_popup(
+            title='Results',
+            message=result_text
+        )
         self.refresh_data(None)
         self.user_answers.clear()
         #self.manager.current = "main"
+    def show_fitting_popup(self, title, message):
+        #"""Improved popup that auto-adjusts to message length."""
+        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        
+        # Label with dynamic text wrapping
+        label = Label(
+            text=message,
+            text_size=(Window.width * 0.7, None),  # Constrain width to 70% of window
+            halign="center",
+            valign="middle",
+            size_hint_y=None,
+            padding=(10, 10))
+        label.bind(texture_size=lambda lbl, val: setattr(lbl, 'height', val[1]))
+        
+        # ScrollView for long messages
+        scroll = ScrollView(size_hint=(1, 0.8))
+        scroll.add_widget(label)
+        content.add_widget(scroll)
+        
+        # OK button
+        ok_button = Button(
+            text="OK", 
+            size_hint=(1, 0.2),
+            background_color=(0.2, 0.6, 1, 1))
+        ok_button.bind(on_press=lambda x: popup.dismiss())
+        content.add_widget(ok_button)
+        
+        popup = Popup(
+            title=title,
+            content=content,
+            size_hint=(0.8, 0.6),
+            auto_dismiss=False
+        )
+        popup.open()
 
     def refresh_data(self, instance):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
@@ -779,7 +849,7 @@ class AdminScreen(BaseScreen):
         self.layout.add_widget(heading)
 
         # Create a ScrollView
-        scroll_view = ScrollView(size_hint=(1, 0.8))
+        scroll_view = ScrollView(size_hint=(1, 0.8), size=(Window.width, Window.height))
         scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
         scroll_content.bind(minimum_height=scroll_content.setter('height'))
 
