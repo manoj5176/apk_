@@ -20,6 +20,8 @@ from kivy.metrics import dp
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy.core.window import Window
+from kivy.uix.behaviors import ButtonBehavior
+from kivy.uix.behaviors import DragBehavior
 import sys
 
 # GitHub API details
@@ -811,6 +813,70 @@ class MainScreen(BaseScreen):
         self.manager.current = "admin"
     def switch_to_login(self, instance):
         self.manager.current = "login"
+
+class SwipeCard(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = 'horizontal'
+        self.spacing = 10
+        self.padding = 10
+        self.size_hint_y = None
+        self.height = dp(150)
+        self.dragging = False
+
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self.rect = RoundedRectangle(size=self.size, pos=self.pos, radius=[dp(10)])
+        self.bind(size=self._update_rect, pos=self._update_rect)
+
+        self.content_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.add_widget(self.content_layout)
+
+        self.buttons_layout = BoxLayout(orientation='horizontal', size_hint=(None, 1), width=0)
+        self.add_widget(self.buttons_layout)
+
+        self.edit_button = Button(
+            text="Edit",
+            size_hint_x=None,
+            width=100,
+            background_color=(0.2, 0.8, 0.2, 1),  # Green color
+            color=(1, 1, 1, 1)  # White text
+        )
+        self.buttons_layout.add_widget(self.edit_button)
+
+        self.delete_button = Button(
+            text="Delete",
+            size_hint_x=None,
+            width=100,
+            background_color=(0.8, 0.2, 0.2, 1),  # Red color
+            color=(1, 1, 1, 1)  # White text
+        )
+        self.buttons_layout.add_widget(self.delete_button)
+
+    def _update_rect(self, instance, value):
+        self.rect.size = instance.size
+        self.rect.pos = instance.pos
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            self.dragging = True
+            return True
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if self.dragging:
+            self.buttons_layout.width = min(self.width, self.buttons_layout.width + touch.dx)
+            return True
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if self.dragging:
+            self.dragging = False
+            if self.buttons_layout.width < self.width / 2:
+                self.buttons_layout.width = 0
+            return True
+        return super().on_touch_up(touch)
+
 class AdminScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -855,54 +921,24 @@ class AdminScreen(BaseScreen):
 
         for question in self.questions:
             # Create a card for each question
-            question_card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None, height=150)
-            with question_card.canvas.before:
-                Color(1, 1, 1, 1)  # White background for the card
-                RoundedRectangle(size=question_card.size, pos=question_card.pos, radius=[dp(10)])
-            question_card.bind(size=self._update_card_rect, pos=self._update_card_rect)
-
-            question_label = Label(
+            question_card = SwipeCard()
+            question_card.content_layout.add_widget(Label(
                 text=question['question'],
                 size_hint_y=None,
                 height=40,
                 font_size='18sp',
                 bold=True,
                 color=(0, 0, 0, 1)  # Black color
-            )
-            question_card.add_widget(question_label)
-
-            # Display options
-            options_label = Label(
+            ))
+            question_card.content_layout.add_widget(Label(
                 text="Options: " + ", ".join(question['options']),
                 size_hint_y=None,
                 height=30,
                 font_size='14sp',
                 color=(0.4, 0.4, 0.4, 1)  # Gray color
-            )
-            question_card.add_widget(options_label)
-
-            # Add Edit and Delete buttons
-            button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=10, padding=10)
-            edit_button = Button(
-                text="Edit",
-                size_hint_x=None,
-                width=100,
-                background_color=(0.2, 0.8, 0.2, 1),  # Green color
-                color=(1, 1, 1, 1)  # White text
-            )
-            edit_button.bind(on_press=lambda instance, q=question: self.edit_question(q))
-            delete_button = Button(
-                text="Delete",
-                size_hint_x=None,
-                width=100,
-                background_color=(0.8, 0.2, 0.2, 1),  # Red color
-                color=(1, 1, 1, 1)  # White text
-            )
-            delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
-            button_layout.add_widget(edit_button)
-            button_layout.add_widget(delete_button)
-            question_card.add_widget(button_layout)
-
+            ))
+            question_card.edit_button.bind(on_press=lambda instance, q=question: self.edit_question(q))
+            question_card.delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
             scroll_content.add_widget(question_card)
 
         scroll_view.add_widget(scroll_content)
@@ -929,6 +965,7 @@ class AdminScreen(BaseScreen):
         button_layout.add_widget(add_button)
         button_layout.add_widget(back_button)
         self.layout.add_widget(button_layout)
+
 
     def _update_rect(self, instance, value):
         """Update the size and position of the background rectangle."""
