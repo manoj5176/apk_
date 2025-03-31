@@ -62,6 +62,8 @@ class RegistrationScreen(Screen):
         self.create_ui()
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+        Window.softinput_mode="below_target"
         self.add_widget(self.layout)
 
     def create_ui(self):
@@ -148,6 +150,8 @@ def restart_app():
         # Bind keyboard events
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+        Window.softinput_mode="below_target"
 
         # Add the layout to the screen
         self.add_widget(self.layout)
@@ -334,6 +338,8 @@ class LoginScreen(BaseScreen):
 
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+        Window.softinput_mode="below_target"
 
     def _refresh_ui(self, dt):
         """Clear input fields when the screen is opened."""
@@ -930,6 +936,8 @@ class AddQuestionScreen(BaseScreen):
 
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+
 
     def create_ui(self):
         self.layout.clear_widgets()
@@ -1070,6 +1078,8 @@ class EditQuestionScreen(BaseScreen):
 
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+
 
     def create_ui(self):
         self.layout.clear_widgets()
@@ -1229,6 +1239,8 @@ class MainApp(App):
 
         Window.bind(on_keyboard=self.on_keyboard)
         Window.bind(on_keyboard_height=self.on_keyboard_height)
+        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+
 
         return self.screen_manager
 
