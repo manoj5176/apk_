@@ -651,7 +651,7 @@ class MainScreen(BaseScreen):
             return
 
         # Add questions to the UI
-        self.scroll_view = ScrollView(size_hint=(1, 0.8), size=(Window.width, Window.height))
+        self.scroll_view = ScrollView(size_hint=(1, 0.7), size=(Window.width, Window.height))
         self.scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
         self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
 
@@ -671,7 +671,7 @@ class MainScreen(BaseScreen):
             background_color=(0.2, 0.6, 1, 1),
             color=(1, 1, 1, 1),
             size_hint_y=None,
-            height=50
+            height=dp(50)
         )
         submit_button.bind(on_press=self.show_results)
         admin_button = Button(
@@ -679,7 +679,7 @@ class MainScreen(BaseScreen):
             background_color=(0.8, 0.2, 0.2, 1),
             color=(1, 1, 1, 1),
             size_hint_y=None,
-            height=50
+            height=dp(50)
         )
         admin_button.bind(on_press=self.switch_to_login)
         button_layout.add_widget(submit_button)
@@ -907,7 +907,7 @@ class AdminScreen(BaseScreen):
         heading = Label(
             text="Admin Panel",
             size_hint_y=None,
-            height=50,
+            height=100,
             font_size='24sp',
             bold=True,
             color=(0.2, 0.6, 1, 1)  # Blue color
@@ -951,7 +951,7 @@ class AdminScreen(BaseScreen):
             background_color=(0.2, 0.6, 1, 1),  # Blue color
             color=(1, 1, 1, 1),  # White text
             size_hint_y=None,
-            height=50
+            height=dp(50)
         )
         add_button.bind(on_press=self.add_question)
         back_button = Button(
@@ -959,7 +959,7 @@ class AdminScreen(BaseScreen):
             background_color=(0.8, 0.2, 0.2, 1),  # Red color
             color=(1, 1, 1, 1),  # White text
             size_hint_y=None,
-            height=50
+            height=dp(50)
         )
         back_button.bind(on_press=self.switch_to_main)
         button_layout.add_widget(add_button)
