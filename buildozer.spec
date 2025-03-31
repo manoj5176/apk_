@@ -20,7 +20,7 @@ source.dir = .
 
 # (list) Source files to include (leave empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas,json,env
-source.include_patterns = assets/*,images/*
+#source.include_patterns = assets/*,images/*
 # (list) List of inclusions using pattern matching
 source.include_patterns = android/app/src/main/AndroidManifest.xml
 
