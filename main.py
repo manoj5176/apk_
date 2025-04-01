@@ -922,285 +922,6 @@ class AdminScreen(BaseScreen):
     def create_ui(self):
         self.layout.clear_widgets()
 
-        # Heading with proper sizing
-        heading = Label(
-            text="Admin Panel",
-            size_hint=(1, None),
-            height=dp(50),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1),
-            halign='center')
-        self.layout.add_widget(heading)
-
-        if not self.questions:
-            no_questions_label = Label(
-                text="No questions found.",
-                size_hint=(1, None),
-                height=dp(50),
-                font_size='22sp',
-                bold=True,
-                color=(0.8, 0.2, 0.2, 1),
-                halign='center')
-            self.layout.add_widget(no_questions_label)
-            return
-
-        # Main scrollable area
-        self.scroll_view = ScrollView(
-            size_hint=(1, 0.8),
-            bar_width=dp(10),
-            bar_color=(0.2, 0.6, 1, 1))
-        
-        self.scroll_content = BoxLayout(
-            orientation='vertical',
-            spacing=dp(15),
-            padding=dp(15),
-            size_hint_y=None)
-        self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
-
-        for question in self.questions:
-            # Card container
-            card = BoxLayout(
-                orientation='vertical',
-                size_hint=(1, None),
-                padding=dp(15),
-                spacing=dp(10))
-            card.bind(minimum_height=card.setter('height'))
-            
-            with card.canvas.before:
-                Color(0.95, 0.95, 0.95, 1)  # Light gray background
-                self.rect = RoundedRectangle(
-                    size=card.size,
-                    pos=card.pos,
-                    radius=[dp(15)])
-            
-            card.bind(
-                size=self._update_card_rect,
-                pos=self._update_card_rect)
-
-            # Question section
-            question_label = Label(
-                text=f"[b]Q:[/b] {question['question']}",
-                size_hint=(1, None),
-                markup=True,
-                font_size='18sp',
-                color=(0, 0, 0, 1),
-                text_size=(Window.width - dp(50), None),  # Account for padding
-                halign='left',
-                valign='top')
-            question_label.bind(
-                texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
-            card.add_widget(question_label)
-
-            # Options section
-            options_box = BoxLayout(
-                orientation='vertical',
-                size_hint=(1, None),
-                spacing=dp(5))
-            
-            options_label = Label(
-                text="[b]Options:[/b]",
-                size_hint=(1, None),
-                height=dp(25),
-                markup=True,
-                font_size='16sp',
-                color=(0.3, 0.3, 0.3, 1),
-                halign='left')
-            options_box.add_widget(options_label)
-
-            for option in question['options']:
-                opt_label = Label(
-                    text=f"• {option}",
-                    size_hint=(1, None),
-                    height=dp(25),
-                    font_size='16sp',
-                    color=(0.4, 0.4, 0.4, 1),
-                    text_size=(Window.width - dp(70), None),
-                    halign='left')
-                opt_label.bind(texture_size=opt_label.setter('size'))
-                options_box.add_widget(opt_label)
-            
-            options_box.height = len(question['options']) * dp(25) + dp(30)
-            card.add_widget(options_box)
-
-            # Button section
-            button_box = BoxLayout(
-                orientation='horizontal',
-                size_hint=(1, None),
-                height=dp(50),
-                spacing=dp(10))
-            
-            edit_button = Button(
-                text="EDIT",
-                size_hint=(0.5, 1),
-                background_color=(0.2, 0.6, 1, 1),
-                color=(1, 1, 1, 1),
-                font_size='16sp',
-                bold=True)
-            edit_button.bind(on_press=lambda _, q=question: self.edit_question(q))
-            
-            delete_button = Button(
-                text="DELETE",
-                size_hint=(0.5, 1),
-                background_color=(0.8, 0.2, 0.2, 1),
-                color=(1, 1, 1, 1),
-                font_size='16sp',
-                bold=True)
-            delete_button.bind(on_press=lambda _, q=question: self.delete_question(q))
-            
-            button_box.add_widget(edit_button)
-            button_box.add_widget(delete_button)
-            card.add_widget(button_box)
-
-            # Set final card height
-            card.height = (question_label.height + 
-                         options_box.height + 
-                         button_box.height + dp(20))
-            self.scroll_content.add_widget(card)
-
-        self.scroll_view.add_widget(self.scroll_content)
-        self.layout.add_widget(self.scroll_view)
-
-        # Bottom action buttons
-        action_buttons = BoxLayout(
-            orientation='horizontal',
-            size_hint=(1, None),
-            height=dp(60),
-            spacing=dp(15),
-            padding=dp(15))
-        
-        add_btn = Button(
-            text="ADD QUESTION",
-            background_normal='',
-            background_color=(0.2, 0.8, 0.2, 1),
-            color=(1, 1, 1, 1),
-            font_size='18sp',
-            bold=True)
-        add_btn.bind(on_press=self.add_question)
-        
-        back_btn = Button(
-            text="MAIN MENU",
-            background_normal='',
-            background_color=(0.8, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1),
-            font_size='18sp',
-            bold=True)
-        back_btn.bind(on_press=self.switch_to_main)
-        
-        action_buttons.add_widget(add_btn)
-        action_buttons.add_widget(back_btn)
-        self.layout.add_widget(action_buttons)
-
-    def _update_card_rect(self, instance, value):
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)
-            RoundedRectangle(
-                size=instance.size,
-                pos=instance.pos,
-                radius=[dp(15)])
-
-    def edit_question(self, question):
-        self.manager.current = "edit_question"
-        self.manager.get_screen("edit_question").load_question(question)
-        self.refresh_data(None)
-
-    def delete_question(self, question):
-        # Confirmation popup before deletion
-        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        content.add_widget(Label(
-            text=f"Delete this question?\n\n{question['question']}",
-            halign='center',
-            text_size=(Window.width*0.7, None)))
-        
-        btn_box = BoxLayout(size_hint=(1, 0.3), spacing=10)
-        yes_btn = Button(text="Delete", background_color=(0.8, 0.2, 0.2, 1))
-        no_btn = Button(text="Cancel", background_color=(0.4, 0.4, 0.4, 1))
-        
-        btn_box.add_widget(no_btn)
-        btn_box.add_widget(yes_btn)
-        content.add_widget(btn_box)
-        
-        popup = Popup(
-            title="Confirm Deletion",
-            content=content,
-            size_hint=(0.8, 0.4),
-            auto_dismiss=False)
-        
-        no_btn.bind(on_press=popup.dismiss)
-        yes_btn.bind(on_press=lambda x: self._confirm_delete(question, popup))
-        popup.open()
-
-    def _confirm_delete(self, question, popup):
-        self.questions.remove(question)
-        if update_github_file(App.get_running_app().access_token, self.questions):
-            self.show_popup("Success", "Question deleted successfully!")
-            self.refresh_data(None)
-        else:
-            self.show_popup("Error", "Failed to update on GitHub")
-        popup.dismiss()
-
-    def add_question(self, instance):
-        self.manager.current = "add_question"
-
-    def switch_to_main(self, instance):
-        self.manager.current = "main"
-
-    def show_popup(self, title, message):
-        content = BoxLayout(orientation='vertical', padding=10)
-        content.add_widget(Label(text=message))
-        ok_btn = Button(text="OK", size_hint=(1, 0.4))
-        popup = Popup(title=title, content=content, size_hint=(0.7, 0.4))
-        ok_btn.bind(on_press=popup.dismiss)
-        content.add_widget(ok_btn)
-        popup.open()
-
-    def refresh_data(self, instance):
-        Clock.schedule_once(self._refresh_ui, 0.1)
-
-    def _refresh_ui(self, dt):
-        self.fetch_questions()
-        self.create_ui()
-
-    def start_progress_animation(self):
-        self.progress_bar.value = 0
-        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)
-
-    def stop_progress_animation(self):
-        if self.animation_event:
-            self.animation_event.cancel()
-            self.animation_event = None
-
-    def update_progress(self, dt):
-        if self.progress_bar.value < self.progress_bar.max:
-            self.progress_bar.value += 1
-        else:
-            self.stop_progress_animation()
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.user_answers = {}
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.progress_bar = ProgressBar(max=100, value=0)  # Add ProgressBar
-        self.layout.add_widget(self.progress_bar)
-        self.fetch_questions()
-        self.create_ui()
-        self.add_widget(self.layout)
-
-    def fetch_questions(self):
-        try:
-            self.questions = fetch_questions(App.get_running_app().access_token)
-        except Exception as e:
-            print(f"Error fetching questions: {e}")
-            self.questions = []
-
-    def _refresh_ui(self, dt):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        self.fetch_questions()
-        self.create_ui()
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
         # Add a heading
         heading = Label(
             text="Admin Panel",
@@ -1231,12 +952,12 @@ class AdminScreen(BaseScreen):
 
         self.question_cards = []
         for question in self.questions:
-            question_card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
-            question_card.bind(minimum_height=question_card.setter('height'))
-            with question_card.canvas.before:
+            card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
+            card.bind(minimum_height=card.setter('height'))
+            with card.canvas.before:
                 Color(1, 1, 1, 1)  # White background for the card
-                RoundedRectangle(size=question_card.size, pos=question_card.pos, radius=[dp(10)])
-            question_card.bind(size=self._update_card_rect, pos=self._update_card_rect)
+                RoundedRectangle(size=card.size, pos=card.pos, radius=[dp(10)])
+            card.bind(size=self._update_card_rect, pos=self._update_card_rect)
 
             question_label = Label(
                 text=question['question'].upper(),
@@ -1246,7 +967,7 @@ class AdminScreen(BaseScreen):
                 color=(0, 0, 0, 1)  # Black color
             )
             question_label.bind(texture_size=question_label.setter('size'))
-            question_card.add_widget(question_label)
+            card.add_widget(question_label)
 
             # Display options
             options_label = Label(
@@ -1256,10 +977,10 @@ class AdminScreen(BaseScreen):
                 color=(0.4, 0.4, 0.4, 1)  # Gray color
             )
             options_label.bind(texture_size=options_label.setter('size'))
-            question_card.add_widget(options_label)
+            card.add_widget(options_label)
 
             # Add spacing between options and buttons
-            question_card.add_widget(Widget(size_hint_y=None, height=dp(10)))
+            card.add_widget(Widget(size_hint_y=None, height=dp(10)))
 
             # Add Edit and Delete buttons
             button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50), spacing=10, padding=10)
@@ -1281,10 +1002,10 @@ class AdminScreen(BaseScreen):
             delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
             button_layout.add_widget(edit_button)
             button_layout.add_widget(delete_button)
-            question_card.add_widget(button_layout)
+            card.add_widget(button_layout)
 
-            self.scroll_content.add_widget(question_card)
-            self.question_cards.append(question_card)
+            self.scroll_content.add_widget(card)
+            self.question_cards.append(card)
 
         self.scroll_view.add_widget(self.scroll_content)
         self.layout.add_widget(self.scroll_view)
@@ -1342,12 +1063,39 @@ class AdminScreen(BaseScreen):
         self.refresh_data(None)
 
     def delete_question(self, question):
+        # Confirmation popup before deletion
+        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        content.add_widget(Label(
+            text=f"Delete this question?\n\n{question['question']}",
+            halign='center',
+            text_size=(Window.width * 0.7, None)))
+        
+        btn_box = BoxLayout(size_hint=(1, 0.3), spacing=10)
+        yes_btn = Button(text="Delete", background_color=(0.8, 0.2, 0.2, 1))
+        no_btn = Button(text="Cancel", background_color=(0.4, 0.4, 0.4, 1))
+        
+        btn_box.add_widget(no_btn)
+        btn_box.add_widget(yes_btn)
+        content.add_widget(btn_box)
+        
+        popup = Popup(
+            title="Confirm Deletion",
+            content=content,
+            size_hint=(0.8, 0.4),
+            auto_dismiss=False)
+        
+        no_btn.bind(on_press=popup.dismiss)
+        yes_btn.bind(on_press=lambda x: self._confirm_delete(question, popup))
+        popup.open()
+
+    def _confirm_delete(self, question, popup):
         self.questions.remove(question)
         if update_github_file(App.get_running_app().access_token, self.questions):
-            self.show_popup("Success", "Question deleted and file updated on GitHub.")
+            self.show_popup("Success", "Question deleted successfully!")
             self.refresh_data(None)
         else:
-            self.show_popup("Error", "Failed to update file on GitHub.")
+            self.show_popup("Error", "Failed to update on GitHub")
+        popup.dismiss()
 
     def add_question(self, instance):
         self.manager.current = "add_question"
@@ -1359,11 +1107,15 @@ class AdminScreen(BaseScreen):
         self.manager.current = "main"
 
     def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message, size_hint=(1, 1))
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text=message))
+        ok_btn = Button(text="OK", size_hint=(1, 0.4))
+        popup = Popup(title=title, content=content, size_hint=(0.7, 0.4))
+        ok_btn.bind(on_press=popup.dismiss)
+        content.add_widget(ok_btn)
         popup.open()
 
-    def refresh_data(self, instance):
+    def refresh_data(self, instance=None):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
         Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
 
