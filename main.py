@@ -922,140 +922,187 @@ class AdminScreen(BaseScreen):
     def create_ui(self):
         self.layout.clear_widgets()
 
-        # Add a heading
+        # Add a heading with improved styling
         heading = Label(
             text="Admin Panel",
-            size_hint_y=None,
-            height=50,
+            size_hint=(1, None),
+            height=dp(60),
             font_size='24sp',
             bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
+            color=(0.2, 0.6, 1, 1),
+            padding=(10, 10)
         )
         self.layout.add_widget(heading)
 
-        if not self.questions:  # Handle empty list
+        if not self.questions:
             no_questions_label = Label(
                 text="No questions found.",
-                size_hint_y=None,
+                size_hint=(1, None),
                 height=dp(50),
-                font_size='22sp',
-                bold=True,
-                color=(0.8, 0.2, 0.2, 1)  # Red color
+                font_size='18sp',
+                color=(0.8, 0.2, 0.2, 1)
             )
             self.layout.add_widget(no_questions_label)
             return
 
-        # Add questions to the UI
-        self.scroll_view = ScrollView(size_hint=(1, 0.8), size=(Window.width, Window.height))
-        self.scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
+        # Main scrollable area
+        self.scroll_view = ScrollView(
+            size_hint=(1, 1),
+            bar_width=dp(10),
+            bar_color=(0.2, 0.6, 1, 1)
+        )
+        self.scroll_content = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(15),
+            padding=dp(10)
+        )
         self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
-
-        self.question_cards = []
-        for question in self.questions:
-            card = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
-            card.bind(minimum_height=card.setter('height'))
-            with card.canvas.before:
-                Color(1, 1, 1, 1)  # White background for the card
-                RoundedRectangle(size=card.size, pos=card.pos, radius=[dp(10)])
-            card.bind(size=self._update_card_rect, pos=self._update_card_rect)
-
-            question_label = Label(
-                text=question['question'].upper(),
-                size_hint_y=None,
-                font_size='20sp',
-                bold=True,
-                color=(0, 0, 0, 1)  # Black color
-            )
-            question_label.bind(texture_size=question_label.setter('size'))
-            card.add_widget(question_label)
-
-            # Display options
-            options_label = Label(
-                text="OPTIONS: " + ", ".join(option.upper() for option in question['options']),
-                size_hint_y=None,
-                font_size='20sp',
-                color=(0.4, 0.4, 0.4, 1)  # Gray color
-            )
-            options_label.bind(texture_size=options_label.setter('size'))
-            card.add_widget(options_label)
-
-            # Add spacing between options and buttons
-            card.add_widget(Widget(size_hint_y=None, height=dp(10)))
-
-            # Add Edit and Delete buttons
-            button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(50), spacing=10, padding=10)
-            edit_button = Button(
-                text="EDIT",
-                size_hint_y=None,
-                height=dp(50),
-                background_color=(0.2, 0.8, 0.2, 1),  # Green color
-                color=(1, 1, 1, 1)  # White text
-            )
-            edit_button.bind(on_press=lambda instance, q=question: self.edit_question(q))
-            delete_button = Button(
-                text="DELETE",
-                size_hint_y=None,
-                height=dp(50),
-                background_color=(0.8, 0.2, 0.2, 1),  # Red color
-                color=(1, 1, 1, 1)  # White text
-            )
-            delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
-            button_layout.add_widget(edit_button)
-            button_layout.add_widget(delete_button)
-            card.add_widget(button_layout)
-
-            self.scroll_content.add_widget(card)
-            self.question_cards.append(card)
-
         self.scroll_view.add_widget(self.scroll_content)
         self.layout.add_widget(self.scroll_view)
 
-        # Add Add New Question and Back to Main buttons
-        button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=10, padding=10)
+        # Add question cards
+        self.question_cards = []
+        for question in self.questions:
+            card = self.create_question_card(question)
+            self.scroll_content.add_widget(card)
+            self.question_cards.append(card)
+
+        # Bottom buttons
+        self.add_bottom_buttons()
+
+    def create_question_card(self, question):
+        """Create a properly sized card for each question"""
+        card = BoxLayout(
+            orientation='vertical',
+            size_hint=(1, None),
+            spacing=dp(10),
+            padding=dp(15)
+        )
+        
+        # Calculate minimum height based on content
+        min_height = dp(150)  # Base height for buttons and padding
+        
+        # Question text
+        question_label = Label(
+            text=question['question'],
+            size_hint=(1, None),
+            font_size='18sp',
+            bold=True,
+            color=(0, 0, 0, 1),
+            text_size=(Window.width - dp(40), None),
+            halign='left',
+            valign='top'
+        )
+        question_label.bind(
+            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
+        card.add_widget(question_label)
+        min_height += question_label.height
+        
+        # Options text
+        options_text = "Options: " + ", ".join(question['options'])
+        options_label = Label(
+            text=options_text,
+            size_hint=(1, None),
+            font_size='16sp',
+            color=(0.4, 0.4, 0.4, 1),
+            text_size=(Window.width - dp(40), None),
+            halign='left'
+        )
+        options_label.bind(
+            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
+        card.add_widget(options_label)
+        min_height += options_label.height
+        
+        # Buttons
+        button_layout = BoxLayout(
+            orientation='horizontal',
+            size_hint=(1, None),
+            height=dp(50),
+            spacing=dp(10))
+        
+        edit_button = Button(
+            text="EDIT",
+            size_hint=(0.5, None),
+            height=dp(45),
+            background_color=(0.2, 0.8, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size='16sp'
+        )
+        edit_button.bind(on_press=lambda instance, q=question: self.edit_question(q))
+        
+        delete_button = Button(
+            text="DELETE",
+            size_hint=(0.5, None),
+            height=dp(45),
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size='16sp'
+        )
+        delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
+        
+        button_layout.add_widget(edit_button)
+        button_layout.add_widget(delete_button)
+        card.add_widget(button_layout)
+        
+        # Set minimum height
+        card.height = min_height
+        
+        # Card styling
+        with card.canvas.before:
+            Color(0.95, 0.95, 0.95, 1)  # Light gray background
+            self.rect = RoundedRectangle(
+                size=card.size,
+                pos=card.pos,
+                radius=[dp(15)]
+            )
+        card.bind(
+            size=self._update_card_rect,
+            pos=self._update_card_rect
+        )
+        
+        return card
+
+    def add_bottom_buttons(self):
+        """Add the bottom action buttons"""
+        button_layout = BoxLayout(
+            orientation='horizontal',
+            size_hint=(1, None),
+            height=dp(60),
+            spacing=dp(10),
+            padding=dp(10)
+        )
+        
         add_button = Button(
             text="ADD NEW QUESTION",
-            background_color=(0.2, 0.6, 1, 1),  # Blue color
-            color=(1, 1, 1, 1),  # White text
-            size_hint_y=None,
-            height=dp(50)
+            background_color=(0.2, 0.6, 1, 1),
+            color=(1, 1, 1, 1),
+            font_size='16sp'
         )
         add_button.bind(on_press=self.add_question)
+        
         back_button = Button(
             text="BACK TO MAIN",
-            background_color=(0.8, 0.2, 0.2, 1),  # Red color
-            color=(1, 1, 1, 1),  # White text
-            size_hint_y=None,
-            height=dp(50)
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size='16sp'
         )
         back_button.bind(on_press=self.switch_to_main)
+        
         button_layout.add_widget(add_button)
         button_layout.add_widget(back_button)
         self.layout.add_widget(button_layout)
 
-    def start_progress_animation(self):
-        """Start the progress bar animation."""
-        self.progress_bar.value = 0
-        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)  # Update every 0.1 seconds
-
-    def stop_progress_animation(self):
-        """Stop the progress bar animation."""
-        if self.animation_event:
-            self.animation_event.cancel()
-            self.animation_event = None
-
-    def update_progress(self, dt):
-        """Update the progress bar value."""
-        if self.progress_bar.value < self.progress_bar.max:
-            self.progress_bar.value += 1  # Increment progress
-        else:
-            self.stop_progress_animation()  # Stop when progress reaches 100%
-
     def _update_card_rect(self, instance, value):
-        """Update the size and position of the card's rounded rectangle."""
+        """Update the card's background rectangle"""
         instance.canvas.before.clear()
         with instance.canvas.before:
-            Color(1, 1, 1, 1)  # White background for the card
-            RoundedRectangle(size=instance.size, pos=instance.pos, radius=[dp(10)])
+            Color(0.95, 0.95, 0.95, 1)
+            RoundedRectangle(
+                size=instance.size,
+                pos=instance.pos,
+                radius=[dp(15)]
+            )
 
     def edit_question(self, question):
         self.manager.current = "edit_question"
@@ -1102,7 +1149,7 @@ class AdminScreen(BaseScreen):
 
     def switch_to_main(self, instance):
         main_screen = self.manager.get_screen("main")
-        if main_screen:
+        if (main_screen):
             main_screen.refresh_data(None)
         self.manager.current = "main"
 
@@ -1123,6 +1170,7 @@ class AdminScreen(BaseScreen):
         """Internal method to refresh the UI."""
         self.fetch_questions()
         self.create_ui()
+
     def start_progress_animation(self):
         """Start the progress bar animation."""
         self.progress_bar.value = 0
@@ -1140,8 +1188,6 @@ class AdminScreen(BaseScreen):
             self.progress_bar.value += 1  # Increment progress
         else:
             self.stop_progress_animation()  # Stop when progress reaches 100%
-
-
 class AddQuestionScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
