@@ -553,66 +553,149 @@ class QuestionCard(BoxLayout):
     def __init__(self, question, **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
-        self.spacing = 10
-        self.padding = 10
+        self.spacing = dp(10)
+        self.padding = dp(15)
         self.size_hint_y = None
         self.bind(minimum_height=self.setter('height'))
-
+        self.question_id = question['id']
+        
+        # Card background
         with self.canvas.before:
-            Color(1, 1, 1, 1)
-            self.rect = RoundedRectangle(size=self.size, pos=self.pos, radius=[dp(10)])
+            Color(0.95, 0.95, 0.95, 1)  # Light gray background
+            self.rect = RoundedRectangle(
+                size=self.size,
+                pos=self.pos,
+                radius=[dp(15)])
         self.bind(size=self._update_rect, pos=self._update_rect)
 
-        self.question_id = question['id']
+        # Question Label (with proper text wrapping)
         self.question_label = Label(
-            text=question['question'].upper(),
-            size_hint_y=None,
-            font_size='20sp',
-            bold=True,
-            color=(0, 0, 0, 1)
-        )
-        self.question_label.bind(texture_size=self.update_height)
+            text=f"[b]Q:[/b] {question['question']}",
+            size_hint=(1, None),
+            height=dp(50),  # Initial height
+            markup=True,
+            font_size='18sp',
+            color=(0, 0, 0, 1),
+            text_size=(Window.width - dp(50), None),  # Constrain width
+            halign='left',
+            valign='top',
+            padding=(dp(5), dp(5)))
+        self.question_label.bind(
+            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
         self.add_widget(self.question_label)
 
-        self.option_layouts = []
+        # Options container
+        self.options_container = BoxLayout(
+            orientation='vertical',
+            size_hint=(1, None),
+            spacing=dp(5))
+        self.options_container.bind(minimum_height=self.options_container.setter('height'))
+
+        # Add each option with checkbox
+        self.option_widgets = []
         for option in question['options']:
-            option_layout = BoxLayout(orientation='horizontal', spacing=20, size_hint_y=None, height=40)
-            padding_widget = Widget(size_hint_x=None, width=20)
-            checkbox = CheckBox(size_hint_x=None, width=30, color=(0.1, 0.1, 0.1, 1))
-            checkbox.bind(active=lambda instance, value, opt=option: self.on_checkbox_active(instance, value, opt))
+            option_row = BoxLayout(
+                orientation='horizontal',
+                size_hint=(1, None),
+                height=dp(40),
+                spacing=dp(10))
+            
+            # Left padding
+            option_row.add_widget(Widget(size_hint_x=None, width=dp(10)))
+            
+            # Checkbox
+            checkbox = CheckBox(
+                size_hint=(None, None),
+                size=(dp(30), dp(30)),
+                group=str(question['id']) if len(question['answers']) == 1 else None,
+                color=(0.2, 0.6, 1, 1))  # Blue color
+            
+            # Bind checkbox
+            checkbox.bind(active=lambda instance, value, opt=option: 
+                self.on_checkbox_active(instance, value, opt))
+            
+            # Option label
             option_label = Label(
-                text=option,
-                size_hint_x=None,
+                text=option.capitalize(),
+                size_hint=(1, 1),
+                font_size='16sp',
+                color=(0.3, 0.3, 0.3, 1),
+                text_size=(Window.width - dp(100), None),  # Constrain width
                 halign='left',
                 valign='middle',
-                bold=True,
-                padding=[20, 0],
-                font_size='20sp',
-                color=(0.1, 0.1, 0.1, 1)
-            )
-            option_label.bind(texture_size=self.update_height)
-            option_layout.add_widget(padding_widget)
-            #option_layout.add_widget(Widget(size_hint_y=None, height=dp(10)))
+                padding=(dp(5), 0))
+            option_label.bind(texture_size=option_label.setter('size'))
+            
+            option_row.add_widget(checkbox)
+            option_row.add_widget(option_label)
+            self.options_container.add_widget(option_row)
+            self.option_widgets.append((option, checkbox))
 
-            option_layout.add_widget(checkbox)
-            option_layout.add_widget(option_label)
-            self.add_widget(option_layout)
-            self.option_layouts.append((option, checkbox))
+        # Set options container height
+        self.options_container.height = len(question['options']) * dp(40)
+        self.add_widget(self.options_container)
+
+        # Reference link if available
+        if question.get('reference'):
+            self.ref_label = Label(
+                text=f"[ref={question['reference']}]View Reference[/ref]",
+                size_hint=(1, None),
+                height=dp(30),
+                markup=True,
+                font_size='14sp',
+                color=(0.2, 0.4, 0.8, 1),
+                halign='left',
+                padding=(dp(15), 0))
+            #self.ref_label.bind(on_ref_press=lambda instance, value: webbrowser.open(value))
+            self.add_widget(self.ref_label)
+
+        # Calculate final card height
+        self.height = (self.question_label.height + 
+                      self.options_container.height + 
+                      (dp(30) if question.get('reference') else 0) + 
+                      dp(20))  # Extra padding
 
     def _update_rect(self, instance, value):
         self.rect.size = instance.size
         self.rect.pos = instance.pos
 
-    def update_height(self, *args):
-        self.height = self.minimum_height
-
     def on_checkbox_active(self, checkbox, value, option):
-        parent_screen = self.parent.parent.parent.parent
-        if value:
-            parent_screen.user_answers.setdefault(self.question_id, []).append((option, checkbox))
-        else:
-            parent_screen.user_answers[self.question_id].remove((option, checkbox))
-        parent_screen.update_selected_options(self.question_id)
+        # Get the parent screen (MainScreen)
+        parent_screen = None
+        parent = self.parent
+        while parent:
+            if hasattr(parent, 'user_answers'):  # This identifies MainScreen
+                parent_screen = parent
+                break
+            parent = parent.parent
+        
+        if parent_screen:
+            if value:
+                if self.question_id not in parent_screen.user_answers:
+                    parent_screen.user_answers[self.question_id] = []
+                parent_screen.user_answers[self.question_id].append(option)
+            else:
+                if (self.question_id in parent_screen.user_answers and 
+                    option in parent_screen.user_answers[self.question_id]):
+                    parent_screen.user_answers[self.question_id].remove(option)
+            
+            # Update visual state of all checkboxes for this question
+            self.update_checkbox_states()
+
+    def update_checkbox_states(self):
+        # Get the parent screen (MainScreen)
+        parent_screen = None
+        parent = self.parent
+        while parent:
+            if hasattr(parent, 'user_answers'):
+                parent_screen = parent
+                break
+            parent = parent.parent
+        
+        if parent_screen and self.question_id in parent_screen.user_answers:
+            selected_options = parent_screen.user_answers[self.question_id]
+            for option, checkbox in self.option_widgets:
+                checkbox.active = option in selected_options
 class MainScreen(BaseScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -734,7 +817,10 @@ class MainScreen(BaseScreen):
 
         for question in self.questions:
             question_id = question['id']
-            user_answers = [option for option, checkbox in self.user_answers.get(question_id, []) if checkbox.active]
+            user_answers = [
+                option for option in self.user_answers.get(question_id, [])
+                if isinstance(option, str)
+            ]
             correct_answers = question['answers']
             is_correct = set(user_answers) == set(correct_answers)  # Compare sets for multiple answers
 
@@ -746,7 +832,7 @@ class MainScreen(BaseScreen):
                 "user_answers": user_answers,
                 "correct_answers": correct_answers,
                 "is_correct": is_correct,
-                "reference": question['reference']
+                "reference": question.get('reference')
             })
 
         result_text = f"Correct Answers: {correct_count}/{len(self.questions)}\n\n"
@@ -755,7 +841,7 @@ class MainScreen(BaseScreen):
                 f"Question: {result['question']}\n"
                 f"Your Answers: {', '.join(result['user_answers'])}\n"
                 f"Correct Answers: {', '.join(result['correct_answers'])}\n"
-                f"Reference: {result['reference']}\n\n"
+                f"Reference: {result.get('reference', 'N/A')}\n\n"
             )
         
         self.show_fitting_popup(
@@ -764,9 +850,9 @@ class MainScreen(BaseScreen):
         )
         self.refresh_data(None)
         self.user_answers.clear()
-        #self.manager.current = "main"
+
     def show_fitting_popup(self, title, message):
-        #"""Improved popup that auto-adjusts to message length."""
+        # Improved popup that auto-adjusts to message length.
         content = BoxLayout(orientation='vertical', spacing=10, padding=10)
         
         # Label with dynamic text wrapping
@@ -800,7 +886,7 @@ class MainScreen(BaseScreen):
         )
         popup.open()
 
-    def refresh_data(self, instance):
+    def refresh_data(self, instance=None):
         """Refresh the UI by fetching the latest questions and rebuilding the UI."""
         # Schedule the UI update using Clock
         Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
@@ -812,9 +898,284 @@ class MainScreen(BaseScreen):
 
     def switch_to_admin(self, instance):
         self.manager.current = "admin"
+
     def switch_to_login(self, instance):
         self.manager.current = "login"
 class AdminScreen(BaseScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.user_answers = {}
+        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.progress_bar = ProgressBar(max=100, value=0)
+        self.layout.add_widget(self.progress_bar)
+        self.fetch_questions()
+        self.create_ui()
+        self.add_widget(self.layout)
+
+    def fetch_questions(self):
+        try:
+            self.questions = fetch_questions(App.get_running_app().access_token)
+        except Exception as e:
+            print(f"Error fetching questions: {e}")
+            self.questions = []
+
+    def create_ui(self):
+        self.layout.clear_widgets()
+
+        # Heading with proper sizing
+        heading = Label(
+            text="Admin Panel",
+            size_hint=(1, None),
+            height=dp(50),
+            font_size='24sp',
+            bold=True,
+            color=(0.2, 0.6, 1, 1),
+            halign='center')
+        self.layout.add_widget(heading)
+
+        if not self.questions:
+            no_questions_label = Label(
+                text="No questions found.",
+                size_hint=(1, None),
+                height=dp(50),
+                font_size='22sp',
+                bold=True,
+                color=(0.8, 0.2, 0.2, 1),
+                halign='center')
+            self.layout.add_widget(no_questions_label)
+            return
+
+        # Main scrollable area
+        self.scroll_view = ScrollView(
+            size_hint=(1, 0.8),
+            bar_width=dp(10),
+            bar_color=(0.2, 0.6, 1, 1))
+        
+        self.scroll_content = BoxLayout(
+            orientation='vertical',
+            spacing=dp(15),
+            padding=dp(15),
+            size_hint_y=None)
+        self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
+
+        for question in self.questions:
+            # Card container
+            card = BoxLayout(
+                orientation='vertical',
+                size_hint=(1, None),
+                padding=dp(15),
+                spacing=dp(10))
+            card.bind(minimum_height=card.setter('height'))
+            
+            with card.canvas.before:
+                Color(0.95, 0.95, 0.95, 1)  # Light gray background
+                self.rect = RoundedRectangle(
+                    size=card.size,
+                    pos=card.pos,
+                    radius=[dp(15)])
+            
+            card.bind(
+                size=self._update_card_rect,
+                pos=self._update_card_rect)
+
+            # Question section
+            question_label = Label(
+                text=f"[b]Q:[/b] {question['question']}",
+                size_hint=(1, None),
+                markup=True,
+                font_size='18sp',
+                color=(0, 0, 0, 1),
+                text_size=(Window.width - dp(50), None),  # Account for padding
+                halign='left',
+                valign='top')
+            question_label.bind(
+                texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
+            card.add_widget(question_label)
+
+            # Options section
+            options_box = BoxLayout(
+                orientation='vertical',
+                size_hint=(1, None),
+                spacing=dp(5))
+            
+            options_label = Label(
+                text="[b]Options:[/b]",
+                size_hint=(1, None),
+                height=dp(25),
+                markup=True,
+                font_size='16sp',
+                color=(0.3, 0.3, 0.3, 1),
+                halign='left')
+            options_box.add_widget(options_label)
+
+            for option in question['options']:
+                opt_label = Label(
+                    text=f"• {option}",
+                    size_hint=(1, None),
+                    height=dp(25),
+                    font_size='16sp',
+                    color=(0.4, 0.4, 0.4, 1),
+                    text_size=(Window.width - dp(70), None),
+                    halign='left')
+                opt_label.bind(texture_size=opt_label.setter('size'))
+                options_box.add_widget(opt_label)
+            
+            options_box.height = len(question['options']) * dp(25) + dp(30)
+            card.add_widget(options_box)
+
+            # Button section
+            button_box = BoxLayout(
+                orientation='horizontal',
+                size_hint=(1, None),
+                height=dp(50),
+                spacing=dp(10))
+            
+            edit_button = Button(
+                text="EDIT",
+                size_hint=(0.5, 1),
+                background_color=(0.2, 0.6, 1, 1),
+                color=(1, 1, 1, 1),
+                font_size='16sp',
+                bold=True)
+            edit_button.bind(on_press=lambda _, q=question: self.edit_question(q))
+            
+            delete_button = Button(
+                text="DELETE",
+                size_hint=(0.5, 1),
+                background_color=(0.8, 0.2, 0.2, 1),
+                color=(1, 1, 1, 1),
+                font_size='16sp',
+                bold=True)
+            delete_button.bind(on_press=lambda _, q=question: self.delete_question(q))
+            
+            button_box.add_widget(edit_button)
+            button_box.add_widget(delete_button)
+            card.add_widget(button_box)
+
+            # Set final card height
+            card.height = (question_label.height + 
+                         options_box.height + 
+                         button_box.height + dp(20))
+            self.scroll_content.add_widget(card)
+
+        self.scroll_view.add_widget(self.scroll_content)
+        self.layout.add_widget(self.scroll_view)
+
+        # Bottom action buttons
+        action_buttons = BoxLayout(
+            orientation='horizontal',
+            size_hint=(1, None),
+            height=dp(60),
+            spacing=dp(15),
+            padding=dp(15))
+        
+        add_btn = Button(
+            text="ADD QUESTION",
+            background_normal='',
+            background_color=(0.2, 0.8, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size='18sp',
+            bold=True)
+        add_btn.bind(on_press=self.add_question)
+        
+        back_btn = Button(
+            text="MAIN MENU",
+            background_normal='',
+            background_color=(0.8, 0.2, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size='18sp',
+            bold=True)
+        back_btn.bind(on_press=self.switch_to_main)
+        
+        action_buttons.add_widget(add_btn)
+        action_buttons.add_widget(back_btn)
+        self.layout.add_widget(action_buttons)
+
+    def _update_card_rect(self, instance, value):
+        instance.canvas.before.clear()
+        with instance.canvas.before:
+            Color(0.95, 0.95, 0.95, 1)
+            RoundedRectangle(
+                size=instance.size,
+                pos=instance.pos,
+                radius=[dp(15)])
+
+    def edit_question(self, question):
+        self.manager.current = "edit_question"
+        self.manager.get_screen("edit_question").load_question(question)
+        self.refresh_data(None)
+
+    def delete_question(self, question):
+        # Confirmation popup before deletion
+        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        content.add_widget(Label(
+            text=f"Delete this question?\n\n{question['question']}",
+            halign='center',
+            text_size=(Window.width*0.7, None)))
+        
+        btn_box = BoxLayout(size_hint=(1, 0.3), spacing=10)
+        yes_btn = Button(text="Delete", background_color=(0.8, 0.2, 0.2, 1))
+        no_btn = Button(text="Cancel", background_color=(0.4, 0.4, 0.4, 1))
+        
+        btn_box.add_widget(no_btn)
+        btn_box.add_widget(yes_btn)
+        content.add_widget(btn_box)
+        
+        popup = Popup(
+            title="Confirm Deletion",
+            content=content,
+            size_hint=(0.8, 0.4),
+            auto_dismiss=False)
+        
+        no_btn.bind(on_press=popup.dismiss)
+        yes_btn.bind(on_press=lambda x: self._confirm_delete(question, popup))
+        popup.open()
+
+    def _confirm_delete(self, question, popup):
+        self.questions.remove(question)
+        if update_github_file(App.get_running_app().access_token, self.questions):
+            self.show_popup("Success", "Question deleted successfully!")
+            self.refresh_data(None)
+        else:
+            self.show_popup("Error", "Failed to update on GitHub")
+        popup.dismiss()
+
+    def add_question(self, instance):
+        self.manager.current = "add_question"
+
+    def switch_to_main(self, instance):
+        self.manager.current = "main"
+
+    def show_popup(self, title, message):
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text=message))
+        ok_btn = Button(text="OK", size_hint=(1, 0.4))
+        popup = Popup(title=title, content=content, size_hint=(0.7, 0.4))
+        ok_btn.bind(on_press=popup.dismiss)
+        content.add_widget(ok_btn)
+        popup.open()
+
+    def refresh_data(self, instance):
+        Clock.schedule_once(self._refresh_ui, 0.1)
+
+    def _refresh_ui(self, dt):
+        self.fetch_questions()
+        self.create_ui()
+
+    def start_progress_animation(self):
+        self.progress_bar.value = 0
+        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)
+
+    def stop_progress_animation(self):
+        if self.animation_event:
+            self.animation_event.cancel()
+            self.animation_event = None
+
+    def update_progress(self, dt):
+        if self.progress_bar.value < self.progress_bar.max:
+            self.progress_bar.value += 1
+        else:
+            self.stop_progress_animation()
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.user_answers = {}
