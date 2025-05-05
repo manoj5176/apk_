@@ -7,7 +7,7 @@
 [app]
 
 # (str) Title of your application
-title = questionnaire
+title = Ntpc-kaniha operation
 
 # (str) Package name
 package.name = myapp
