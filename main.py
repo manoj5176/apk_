@@ -1,1532 +1,1959 @@
-import os
-import json
-import requests
-import base64
-import uuid
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
-from kivy.uix.popup import Popup
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.clock import Clock
-from kivy.lang import Builder
-from kivy.uix.image import Image
-from kivy.graphics import Color, Rectangle,RoundedRectangle
 from kivy.metrics import dp
-from kivy.uix.progressbar import ProgressBar
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.core.window import Window
+import subprocess
 import sys
+import os
 
-# GitHub API details
-# File to store the access token
-CONFIG_FILE = "config5.json"
-def load_access_token():
-    """Load the access token from the config file."""
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r") as f:
-                config = json.load(f)
-                return config.get("access_token")
-        except Exception as e:
-            print(f"Error loading access token: {e}")
-    return None
-
-# Save access token to config file
-def save_access_token(token):
-    """Save the access token to the config file."""
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            json.dump({"access_token": token}, f)
-        return True
-    except Exception as e:
-        print(f"Error saving access token: {e}")
-        return False
-
-
-CREDENTIALS_REPO = "manoj5176/app_credentials"  # Private repository
-CREDENTIALS_FILE = "admin.json"
-CREDENTIALS_FILE1 = "admin_credentials.json"
-BRANCH = "main"
-def check_internet():
-    """Check internet connection with timeout"""
-    try:
-        response = requests.get("https://www.google.com", timeout=5)
-        return True
-    except (requests.ConnectionError, requests.Timeout):
-        return False
-
-def show_no_internet_popup():
-    """Show popup that closes the app when no internet"""
-    def close_app(_):
-        App.get_running_app().stop()
-        sys.exit(0)
-
-    content = BoxLayout(orientation='vertical', padding=10)
-    content.add_widget(Label(
-        text="No Internet Connection\nApp will close",
-        halign='center'
-    ))
-    close_btn = Button(text="OK", size_hint=(1, 0.4))
-    close_btn.bind(on_press=close_app)
-    content.add_widget(close_btn)
-
-    popup = Popup(
-        title="Connection Error",
-        content=content,
-        size_hint=(0.7, 0.4),
-        auto_dismiss=False
-    )
-    popup.open()
-
-# Registration Screen
-class RegistrationScreen(Screen):
+class LauncherScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        self.create_ui()
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
-        Window.softinput_mode="below_target"
-        self.add_widget(self.layout)
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height))
-        self.content_layout = BoxLayout(orientation='vertical', size_hint_y=None)
-        self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
-        self.scroll_view.add_widget(self.content_layout)
-
-        for i in range(5):
-            self.content_layout.add_widget(Label(
-                text=f"Sample Content {i}",
-                size_hint_y=None,
-                height=dp(50),
-                font_size='18sp',
-                color=(0, 0, 0, 1)
-            ))
-
-        self.layout.add_widget(self.scroll_view)
-        self.anchor_layout = AnchorLayout(anchor_y='bottom', size_hint_y=None, height=dp(150))
-        self.form_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(150), spacing=10)
-        self.token_input = TextInput(
-            hint_text="Enter Access Token",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.form_layout.add_widget(self.token_input)
-        register_button = Button(
-            text="Register",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),
-            color=(1, 1, 1, 1)
-        )
-        register_button.bind(on_press=self.register_device)
-        self.form_layout.add_widget(register_button)
-        self.anchor_layout.add_widget(self.form_layout)
-        self.layout.add_widget(self.anchor_layout)
-
-    def on_keyboard(self, window, key, *args):
-        if key == 27:  # Escape key
-            return True
-        return False
-
-    def on_keyboard_height(self, window, height):
-        if height > 0:
-            self.scroll_view.height = Window.height - height - dp(150)
-            self.anchor_layout.y = height
-        else:
-            self.scroll_view.height = Window.height
-            self.anchor_layout.y = 0
-
-    def register_device(self, instance):
-        token = self.token_input.text.strip()
-        if not token:
-            self.show_popup("Error", "Access token cannot be empty.")
-            return
-        if save_access_token(token):
-            self.show_popup("Success", "Device registered successfully!")
-            app = App.get_running_app()
-            app.access_token = token
-            app.refresh_all_screens()
-            Clock.schedule_once(lambda dt: restart_app(), 1)
-        else:
-            self.show_popup("Error", "Failed to save access token.")
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-
-def restart_app():
-    python = sys.executable
-    os.execl(python, python, *sys.argv)
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        self.create_ui()
-
-        # Bind keyboard events
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
-        Window.softinput_mode="below_target"
-
-        # Add the layout to the screen
-        self.add_widget(self.layout)
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
-        # Add a ScrollView for the main content
-        self.scroll_view = ScrollView(size_hint=(1, None), size=(Window.width, Window.height))
-        self.content_layout = BoxLayout(orientation='vertical', size_hint_y=None)
-        self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
-        self.scroll_view.add_widget(self.content_layout)
-
-        # Add some example content (optional)
-        for i in range(5):
-            self.content_layout.add_widget(Label(
-                text=f"Sample Content {i}",
-                size_hint_y=None,
-                height=dp(50),
-                font_size='18sp',
-                color=(0, 0, 0, 1)
-            ))
-
-        self.layout.add_widget(self.scroll_view)
-
-        # Add an AnchorLayout to keep the registration form at the bottom
-        self.anchor_layout = AnchorLayout(anchor_y='bottom', size_hint_y=None, height=dp(150))
-        self.form_layout = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(150), spacing=10)
-
-        # Token Input
-        self.token_input = TextInput(
-            hint_text="Enter Access Token",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
-        )
-        self.form_layout.add_widget(self.token_input)
-
-        # Register Button
-        register_button = Button(
-            text="Register",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),  # Blue color
-            color=(1, 1, 1, 1)  # White text
-        )
-        register_button.bind(on_press=self.register_device)
-        self.form_layout.add_widget(register_button)
-
-        self.anchor_layout.add_widget(self.form_layout)
-        self.layout.add_widget(self.anchor_layout)
-
-    def on_keyboard(self, window, key, *args):
-        # Handle keyboard events (optional)
-        pass
-
-    def on_keyboard_height(self, window, height):
-        # Adjust the layout when the keyboard opens/closes
-        if height > 0:
-            # Keyboard is open
-            self.scroll_view.height = Window.height - height - dp(150)  # Subtract the form height
-            self.anchor_layout.y = height  # Move the form above the keyboard
-        else:
-            # Keyboard is closed
-            self.scroll_view.height = Window.height  # Reset to full height
-            self.anchor_layout.y = 0  # Reset the form position
-
-    def register_device(self, instance):
-        token = self.token_input.text.strip()
-        if not token:
-            self.show_popup("Error", "Access token cannot be empty.")
-            return
-
-        # Save the token to the config file
-        if save_access_token(token):
-            self.show_popup("Success", "Device registered successfully!")
-            app = App.get_running_app()
-            app.access_token = token  # Store the token in the App instance
-            app.refresh_all_screens()  # Refresh all screens
-
-            # Restart the app after successful registration
-            Clock.schedule_once(lambda dt: restart_app(), 1)  # Restart after 1 second
-        else:
-            self.show_popup("Error", "Failed to save access token.")
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-def restart_app():
-    """Restart the application."""
-    python = sys.executable  # Get the current Python interpreter
-    os.execl(python, python, *sys.argv)  # Restart the script
-
-# GitHub API to fetch credentials
-def fetch_admin_credentials(token):
-    #GITHUB_TOKEN= base64.b64decode(GITHUB_TOKEN1.encode("utf-8")).decode("utf-8")
-    GITHUB_TOKEN = token
-    if not GITHUB_TOKEN:
-        raise Exception("Access token not found. Please register the device first.")
-    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
-
-    url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE}"
-    headers = {'Authorization': f'token {GITHUB_TOKEN}'}
-    proxies = {
-    "https": "http://10.0.9.40:8080"}
-
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        file_data = response.json()
-
-        # Debugging: Print the GitHub API response
-        print("GitHub API Response:", file_data)
-
-        if "content" in file_data:
-            # Decode the Base64-encoded content
-            encoded_content = file_data["content"]
-            decoded_content = base64.b64decode(encoded_content).decode('utf-8')
-
-            # Debugging: Print the decoded content
-            print("Decoded Content:", decoded_content)
-
-            if decoded_content.strip():  # Check if content is not empty
-                return json.loads(decoded_content)
-            else:
-                raise Exception("The decoded content is empty.")
-        else:
-            raise Exception("The 'content' key is missing in the API response.")
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Failed to fetch admin credentials: {e}")
-    except json.JSONDecodeError as e:
-        raise Exception(f"Failed to decode JSON content: {e}")
-        
-
-# Fetch admin credentials
-try:
-    access_token = load_access_token()
-    if access_token:
-        ADMIN_CREDENTIALS = fetch_admin_credentials(access_token)
-    else:
-        ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
-except Exception as e:
-    print(f"Error fetching admin credentials: {e}")
-    ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
-# Base Screen Class
-class BaseScreen(Screen):
-    def on_pre_enter(self, *args):
-        #"""Check internet before screen appears"""
-        if not check_internet():
-            show_no_internet_popup()
-            return False
-        return True
-    def show_loading(self, message="Loading..."):
-        self.loading_popup = Popup(title=message, size_hint=(0.6, 0.2))
-        self.loading_popup.content = ProgressBar()
-        self.loading_popup.open()
-
-    def hide_loading(self):
-        if self.loading_popup:
-            self.loading_popup.dismiss()
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-
-    def refresh_data(self, instance):
-        Clock.schedule_once(self._refresh_ui, 0.1)
-
-    def _refresh_ui(self, dt):
-        """Subclasses must implement this method to refresh their UI."""
-        raise NotImplementedError("Subclasses must implement this method")
-
-
-class LoginScreen(BaseScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.create_ui()
-        self.add_widget(self.layout)
-        try:
-            ADMIN_CREDENTIALS = fetch_admin_credentials(App.get_running_app().access_token)
-        except Exception as e:
-            print(f"Error fetching admin credentials: {e}")
-        ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}  # Fallback credentials
-
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
-        Window.softinput_mode="below_target"
-
-    def _refresh_ui(self, dt):
-        """Clear input fields when the screen is opened."""
-        self.username_input.text = ""
-        self.password_input.text = ""
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
-        # Heading
-        heading = Label(
-            text="Sign In to start your session...",
-            size_hint_y=None,
-            height=dp(50),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
-        )
-        self.layout.add_widget(heading)
-
-        # Employee ID Input
-        self.username_input = TextInput(
-            hint_text="Employee Id",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
-        )
-        self.layout.add_widget(self.username_input)
-
-        # Password Input
-        self.password_input = TextInput(
-            hint_text="Password",
-            multiline=False,
-            password=True,  # Hide password input
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),  # White background
-            foreground_color=(0, 0, 0, 1)  # Black text
-        )
-        self.layout.add_widget(self.password_input)
-
-        # Sign In Button
-        sign_in_button = Button(
-            text="Sign In",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),  # Blue color
-            color=(1, 1, 1, 1)  # White text
-        )
-        sign_in_button.bind(on_press=self.authenticate)
-        self.layout.add_widget(sign_in_button)
-
-        # Skip Sign In Button
-        skip_button = Button(
-            text="Skip Sign In",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.8, 0.2, 0.2, 1),  # Red color
-            color=(1, 1, 1, 1)  # White text
-        )
-        skip_button.bind(on_press=self.backtomain)
-        self.layout.add_widget(skip_button)
-
-    def on_keyboard(self, window, key, *args):
-        if key == 27:  # Escape key
-            return True
-        return False
-
-    def on_keyboard_height(self, window, height):
-        if height > 0:
-            self.layout.height = Window.height - height
-        else:
-            self.layout.height = Window.height
-
-    def authenticate(self, instance):
-        username = self.username_input.text
-        password = self.password_input.text
-
-        if username == ADMIN_CREDENTIALS["username"] and password == ADMIN_CREDENTIALS["password"]:
-            self.show_popup("Success", "Login successful!")
-            self.manager.current = "admin"
-        else:
-            self.show_popup("Error", "Invalid username or password")
-
-    def backtomain(self, instance):
-        self.manager.current = 'main'
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        self.refresh_data(None)
-        popup.open()
-
-    def refresh_data(self, instance):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        # Schedule the UI update using Clock
-        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
-
-    def _refresh_ui(self, dt):
-        """Internal method to refresh the UI."""
-        self.create_ui()
-
-
-
-
-
-# GitHub API to fetch questions
-def fetch_questions(token):
-    GITHUB_TOKEN = token
-    if not GITHUB_TOKEN:
-        raise Exception("Access token not found. Please register the device first.")
-    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
-    url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
-    headers = {'Authorization': 'token ' + GITHUB_TOKEN }
-    proxies = {
-    "https": "http://10.0.9.40:8080"}
-
-    response = requests.get(url, headers=headers)
-    print(f"API Response: {response.status_code} - {response.text}")  # Debugging
-    if response.status_code == 200:
-        file_data = response.json()
-        if "content" in file_data:
-            # Decode the content from base64
-            content = base64.b64decode(file_data['content']).decode("utf-8")
-            return json.loads(content)
-        else:
-            raise Exception("The 'content' key is missing in the API response.")
-    else:
-        raise Exception(f"Failed to fetch questions: {response.status_code} - {response.text}")
-
-# Update questions on GitHub
-def update_github_file(token,questions):
-    GITHUB_TOKEN = token
-    if not GITHUB_TOKEN:
-        raise Exception("Access token not found. Please register the device first.")
-    #GITHUB_TOKEN = load_access_token(CONFIG_FILE.access_token)
-    url = f"https://api.github.com/repos/{CREDENTIALS_REPO}/contents/{CREDENTIALS_FILE1}"
-    headers = {'Authorization': 'token ' + GITHUB_TOKEN }
-    proxies = {
-    "https": "http://10.0.9.40:8080"}
-
-    # Fetch existing file details
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        file_data = response.json()
-        if "sha" in file_data:
-            sha = file_data['sha']
-
-            # Update the file
-            updated_content = json.dumps(questions, indent=2)
-            update_data = {
-                "message": "Update questions from app",
-                "content": base64.b64encode(updated_content.encode("utf-8")).decode("utf-8"),
-                "sha": sha,
-                "branch": BRANCH
-            }
-
-            update_response = requests.put(url, headers=headers, json=update_data)
-            if update_response.status_code == 200:
-                return True
-            else:
-                raise Exception(f"Failed to update file on GitHub: {update_response.status_code} - {update_response.text}")
-        else:
-            raise Exception("The 'sha' key is missing in the API response.")
-    else:
-        raise Exception(f"Failed to fetch file details from GitHub: {response.status_code} - {response.text}")
+        self.name = 'launcher'
+        self.build_ui()
     
-
-from kivy.uix.widget import Widget
-
-class QuestionCard(BoxLayout):
-    def __init__(self, question, **kwargs):
-        super().__init__(**kwargs)
-        self.orientation = 'vertical'
-        self.spacing = dp(10)
-        self.padding = dp(15)
-        self.size_hint_y = None
-        self.bind(minimum_height=self.setter('height'))
-        self.question_id = question['id']
+    def build_ui(self):
+        layout = BoxLayout(orientation='vertical', spacing=dp(20), padding=dp(40))
         
-        # Card background
-        with self.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)  # Light gray background
-            self.rect = RoundedRectangle(
-                size=self.size,
-                pos=self.pos,
-                radius=[dp(15)])
-        self.bind(size=self._update_rect, pos=self._update_rect)
-
-        # Question Label (with proper text wrapping)
-        self.question_label = Label(
-            text=f"[b]Q:[/b] {question['question']}",
-            size_hint=(1, None),
-            height=dp(50),  # Initial height
+        # Title
+        title = Label(
+            text="[b]SWGR Data Applications[/b]",
             markup=True,
-            font_size='18sp',
-            color=(0, 0, 0, 1),
-            text_size=(Window.width - dp(50), None),  # Constrain width
-            halign='left',
-            valign='top',
-            padding=(dp(5), dp(5)))
-        self.question_label.bind(
-            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
-        self.add_widget(self.question_label)
-
-        # Options container
-        self.options_container = BoxLayout(
-            orientation='vertical',
-            size_hint=(1, None),
-            spacing=dp(5))
-        self.options_container.bind(minimum_height=self.options_container.setter('height'))
-
-        # Add each option with checkbox
-        self.option_widgets = []
-        for option in question['options']:
-            option_row = BoxLayout(
-                orientation='horizontal',
-                size_hint=(1, None),
-                height=dp(40),
-                spacing=dp(10))
-            
-            # Left padding
-            option_row.add_widget(Widget(size_hint_x=None, width=dp(10)))
-            
-            # Checkbox
-            checkbox = CheckBox(
-                size_hint=(None, None),
-                size=(dp(30), dp(30)),
-                group=str(question['id']) if len(question['answers']) == 1 else None,
-                color=(0.2, 0.6, 1, 1))  # Blue color
-            
-            # Bind checkbox
-            checkbox.bind(active=lambda instance, value, opt=option: 
-                self.on_checkbox_active(instance, value, opt))
-            
-            # Option label
-            option_label = Label(
-                text=option.capitalize(),
-                size_hint=(1, 1),
-                font_size='16sp',
-                color=(0.3, 0.3, 0.3, 1),
-                text_size=(Window.width - dp(100), None),  # Constrain width
-                halign='left',
-                valign='middle',
-                padding=(dp(5), 0))
-            option_label.bind(texture_size=option_label.setter('size'))
-            
-            option_row.add_widget(checkbox)
-            option_row.add_widget(option_label)
-            self.options_container.add_widget(option_row)
-            self.option_widgets.append((option, checkbox))
-
-        # Set options container height
-        self.options_container.height = len(question['options']) * dp(40)
-        self.add_widget(self.options_container)
-
-        # Reference link if available
-        if question.get('reference'):
-            self.ref_label = Label(
-                text=f"[ref={question['reference']}]View Reference[/ref]",
-                size_hint=(1, None),
-                height=dp(30),
-                markup=True,
-                font_size='14sp',
-                color=(0.2, 0.4, 0.8, 1),
-                halign='left',
-                padding=(dp(15), 0))
-            #self.ref_label.bind(on_ref_press=lambda instance, value: webbrowser.open(value))
-            self.add_widget(self.ref_label)
-
-        # Calculate final card height
-        self.height = (self.question_label.height + 
-                      self.options_container.height + 
-                      (dp(30) if question.get('reference') else 0) + 
-                      dp(20))  # Extra padding
-
-    def _update_rect(self, instance, value):
-        self.rect.size = instance.size
-        self.rect.pos = instance.pos
-
-    def on_checkbox_active(self, checkbox, value, option):
-        # Get the parent screen (MainScreen)
-        parent_screen = None
-        parent = self.parent
-        while parent:
-            if hasattr(parent, 'user_answers'):  # This identifies MainScreen
-                parent_screen = parent
-                break
-            parent = parent.parent
-        
-        if parent_screen:
-            if value:
-                if self.question_id not in parent_screen.user_answers:
-                    parent_screen.user_answers[self.question_id] = []
-                parent_screen.user_answers[self.question_id].append(option)
-            else:
-                if (self.question_id in parent_screen.user_answers and 
-                    option in parent_screen.user_answers[self.question_id]):
-                    parent_screen.user_answers[self.question_id].remove(option)
-            
-            # Update visual state of all checkboxes for this question
-            self.update_checkbox_states()
-
-    def update_checkbox_states(self):
-        # Get the parent screen (MainScreen)
-        parent_screen = None
-        parent = self.parent
-        while parent:
-            if hasattr(parent, 'user_answers'):
-                parent_screen = parent
-                break
-            parent = parent.parent
-        
-        if parent_screen and self.question_id in parent_screen.user_answers:
-            selected_options = parent_screen.user_answers[self.question_id]
-            for option, checkbox in self.option_widgets:
-                checkbox.active = option in selected_options
-class MainScreen(BaseScreen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.user_answers = {}
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.progress_bar = ProgressBar(max=100, value=0)  # Add ProgressBar
-        self.layout.add_widget(self.progress_bar)
-        self.fetch_questions()
-        self.create_ui()
-        self.add_widget(self.layout)
-
-    def fetch_questions(self):
-        try:
-            self.questions = fetch_questions(App.get_running_app().access_token)
-        except Exception as e:
-            print(f"Error fetching questions: {e}")
-            self.questions = []
-
-    def _refresh_ui(self, dt):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        self.fetch_questions()
-        self.create_ui()
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
-        if not self.questions:  # Handle empty list
-            no_questions_label = Label(
-                text="No questions found.",
-                size_hint_y=None,
-                height=dp(50),
-                font_size='22sp',
-                bold=True,
-                color=(0.8, 0.2, 0.2, 1)  # Red color
-            )
-            self.layout.add_widget(no_questions_label)
-            return
-
-        # Add questions to the UI
-        self.scroll_view = ScrollView(size_hint=(1, 0.8), size=(Window.width, Window.height))
-        self.scroll_content = BoxLayout(orientation='vertical', spacing=10, padding=10, size_hint_y=None)
-        self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
-
-        self.question_cards = []
-        for question in self.questions:
-            question_card = QuestionCard(question)
-            self.scroll_content.add_widget(question_card)
-            self.question_cards.append(question_card)
-
-        self.scroll_view.add_widget(self.scroll_content)
-        self.layout.add_widget(self.scroll_view)
-
-        # Add Submit and Admin Login buttons
-        button_layout = BoxLayout(orientation='horizontal', size_hint_y=None, height=50, spacing=10, padding=10)
-        submit_button = Button(
-            text="Submit",
-            background_color=(0.2, 0.6, 1, 1),
-            color=(1, 1, 1, 1),
+            font_size=dp(28),
             size_hint_y=None,
-            height=dp(50)
-        )
-        submit_button.bind(on_press=self.show_results)
-        admin_button = Button(
-            text="Admin Login",
+            height=dp(80),
+            color=(0.2, 0.2, 0.6, 1))
+        layout.add_widget(title)
+        
+        # Unit 3 Button (PDF Data Search)
+        unit3_btn = Button(
+            text="Unit 3 -  Data Search",
+            size_hint_y=None,
+            height=dp(80),
+            background_normal='',
+            background_color=(0.2, 0.4, 0.6, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(22),
+            bold=True)
+        unit3_btn.bind(on_press=self.launch_pdf_search)
+        layout.add_widget(unit3_btn)
+        
+        # Placeholder Buttons for Other Units
+        unit4_btn = Button(
+            text="Unit 4 -  Data Search",
+            size_hint_y=None,
+            height=dp(80),
+            background_normal='',
+            background_color=(0.4, 0.2, 0.6, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(22))
+        unit4_btn.bind(on_press=self.launch_pdf_search1)
+        layout.add_widget(unit4_btn)
+        
+        unit2_btn = Button(
+            text="Unit 5 - Coming Soon",
+            size_hint_y=None,
+            height=dp(80),
+            background_normal='',
+            background_color=(0.6, 0.2, 0.4, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(22))
+        layout.add_widget(unit2_btn)
+        
+        # Exit Button
+        exit_btn = Button(
+            text="Exit",
+            size_hint_y=None,
+            height=dp(60),
+            background_normal='',
             background_color=(0.8, 0.2, 0.2, 1),
             color=(1, 1, 1, 1),
-            size_hint_y=None,
-            height=dp(50)
-        )
-        admin_button.bind(on_press=self.switch_to_login)
-        button_layout.add_widget(submit_button)
-        button_layout.add_widget(admin_button)
-        self.layout.add_widget(button_layout)
-
-        # Add the title at the bottom
-        title_label = Label(
-            text="Questionnaire",
-            size_hint_y=None,
-            height=50,
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1)
-        )
-        self.layout.add_widget(title_label)
-
-    def start_progress_animation(self):
-        """Start the progress bar animation."""
-        self.progress_bar.value = 0
-        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)  # Update every 0.1 seconds
-
-    def stop_progress_animation(self):
-        """Stop the progress bar animation."""
-        if self.animation_event:
-            self.animation_event.cancel()
-            self.animation_event = None
-
-    def update_progress(self, dt):
-        """Update the progress bar value."""
-        if self.progress_bar.value < self.progress_bar.max:
-            self.progress_bar.value += 1  # Increment progress
-        else:
-            self.stop_progress_animation()  # Stop when progress reaches 100%
-
-    def _update_rect(self, instance, value):
-        """Update the size and position of the background rectangle."""
-        self.rect.size = instance.size
-        self.rect.pos = instance.pos
-
-    def update_selected_options(self, question_id):
-        selected_options = self.user_answers.get(question_id, [])
-        for question_card in self.question_cards:
-            if question_card.question_id == question_id:
-                for option, checkbox in question_card.option_layouts:
-                    checkbox.active = (option, checkbox) in selected_options
-
-    def show_results(self, instance):
-        correct_count = 0
-        results = []
-
-        for question in self.questions:
-            question_id = question['id']
-            user_answers = [
-                option for option in self.user_answers.get(question_id, [])
-                if isinstance(option, str)
-            ]
-            correct_answers = question['answers']
-            is_correct = set(user_answers) == set(correct_answers)  # Compare sets for multiple answers
-
-            if is_correct:
-                correct_count += 1
-
-            results.append({
-                "question": question['question'],
-                "user_answers": user_answers,
-                "correct_answers": correct_answers,
-                "is_correct": is_correct,
-                "reference": question.get('reference')
-            })
-
-        result_text = f"Correct Answers: {correct_count}/{len(self.questions)}\n\n"
-        for result in results:
-            result_text += (
-                f"Question: {result['question']}\n"
-                f"Your Answers: {', '.join(result['user_answers'])}\n"
-                f"Correct Answers: {', '.join(result['correct_answers'])}\n"
-                f"Reference: {result.get('reference', 'N/A')}\n\n"
-            )
+            font_size=dp(18))
+        exit_btn.bind(on_press=self.exit_app)
+        layout.add_widget(exit_btn)
         
-        self.show_fitting_popup(
-            title='Results',
-            message=result_text
-        )
-        self.refresh_data(None)
-        self.user_answers.clear()
-
-    def show_fitting_popup(self, title, message):
-        # Improved popup that auto-adjusts to message length.
-        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.add_widget(layout)
+    
+    def launch_pdf_search(self, instance):
+        # Check if PDF search app exists
         
-        # Label with dynamic text wrapping
-        label = Label(
-            text=message,
-            text_size=(Window.width * 0.7, None),  # Constrain width to 70% of window
-            halign="center",
-            valign="middle",
-            size_hint_y=None,
-            padding=(10, 10))
-        label.bind(texture_size=lambda lbl, val: setattr(lbl, 'height', val[1]))
-        
-        # ScrollView for long messages
-        scroll = ScrollView(size_hint=(1, 0.8))
-        scroll.add_widget(label)
-        content.add_widget(scroll)
-        
-        # OK button
-        ok_button = Button(
-            text="OK", 
-            size_hint=(1, 0.2),
-            background_color=(0.2, 0.6, 1, 1))
-        ok_button.bind(on_press=lambda x: popup.dismiss())
-        content.add_widget(ok_button)
-        
-        popup = Popup(
-            title=title,
-            content=content,
-            size_hint=(0.8, 0.6),
-            auto_dismiss=False
-        )
-        popup.open()
+        #App.get_running_app().stop()
+        file_name = "unit3.py"
+        if not os.path.exists(file_name):
+            self.save_code_to_file(
+                file_name=file_name,
+                code_content="""\
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.properties import StringProperty, BooleanProperty, NumericProperty, ObjectProperty
+from kivy.clock import Clock
+from kivy.metrics import dp
+from kivy.graphics import Color, Rectangle
+from kivy.animation import Animation
+import requests
+import json
+import sqlite3
+from datetime import datetime
+import pandas as pd
+from functools import partial
+from kivy.core.window import Window
+from kivy.uix.modalview import ModalView
 
-    def refresh_data(self, instance=None):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        # Schedule the UI update using Clock
-        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
 
-    def _refresh_ui(self, dt):
-        """Internal method to refresh the UI."""
-        self.fetch_questions()
-        self.create_ui()
-
-    def switch_to_admin(self, instance):
-        self.manager.current = "admin"
-
-    def switch_to_login(self, instance):
-        self.manager.current = "login"
-class AdminScreen(BaseScreen):
-    def __init__(self, **kwargs):
+class TableViewScreen(Screen):
+    def __init__(self, table_key, header, table_data, **kwargs):
         super().__init__(**kwargs)
-        self.user_answers = {}
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.progress_bar = ProgressBar(max=100, value=0)
-        self.layout.add_widget(self.progress_bar)
-        self.fetch_questions()
-        self.create_ui()
-        self.add_widget(self.layout)
-
-    def fetch_questions(self):
-        try:
-            self.questions = fetch_questions(App.get_running_app().access_token)
-        except Exception as e:
-            print(f"Error fetching questions: {e}")
-            self.questions = []
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
-        # Add a heading with improved styling
-        heading = Label(
-            text="Admin Panel",
-            size_hint=(1, None),
+        self.name = table_key
+        self.table_key = table_key
+        self.header = header
+        self.table_data = table_data
+        
+        # Main layout
+        main_layout = BoxLayout(orientation='vertical')
+        
+        # Fixed header with back button
+        header_box = BoxLayout(
+            size_hint_y=None, 
             height=dp(60),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1),
-            padding=(10, 10)
+            padding=dp(10),
+            spacing=dp(10)
         )
-        self.layout.add_widget(heading)
-
-        if not self.questions:
-            no_questions_label = Label(
-                text="No questions found.",
-                size_hint=(1, None),
-                height=dp(50),
-                font_size='18sp',
-                color=(0.8, 0.2, 0.2, 1)
-            )
-            self.layout.add_widget(no_questions_label)
-            return
-
-        # Main scrollable area
-        self.scroll_view = ScrollView(
+        with header_box.canvas.before:
+            Color(0.2, 0.4, 0.6, 1)
+            self.header_bg = Rectangle(pos=header_box.pos, size=header_box.size)
+        
+        def update_header_bg(instance, value):
+            self.header_bg.pos = instance.pos
+            self.header_bg.size = instance.size
+        
+        header_box.bind(pos=update_header_bg, size=update_header_bg)
+        
+        back_btn = Button(
+            text="← Back",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        back_btn.bind(on_press=self.go_back)
+        header_box.add_widget(back_btn)
+        
+        title = Label(
+            text=f"[b]{table_key}:[/b] {header[:100]}{'...' if len(header) > 100 else ''}",
+            markup=True,
+            halign='left',
+            valign='middle',
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        header_box.add_widget(title)
+        main_layout.add_widget(header_box)
+        
+        # Container for table with fixed column headers
+        table_container = BoxLayout(orientation='vertical')
+        
+        # Create column headers (fixed)
+        self.column_headers = self._create_column_headers(table_data)
+        table_container.add_widget(self.column_headers)
+        
+        # Scrollable data area
+        self.data_scroll = ScrollView(
             size_hint=(1, 1),
             bar_width=dp(10),
-            bar_color=(0.2, 0.6, 1, 1)
+            scroll_type=['bars', 'content']
         )
-        self.scroll_content = BoxLayout(
+        
+        # Data grid
+        self.data_grid = self._create_data_grid(table_data)
+        self.data_scroll.add_widget(self.data_grid)
+        table_container.add_widget(self.data_scroll)
+        
+        main_layout.add_widget(table_container)
+        self.add_widget(main_layout)
+    
+    def _create_column_headers(self, table_data):
+        
+        try:
+            df = pd.DataFrame(table_data)
+            col_header = GridLayout(
+                cols=len(df.columns),
+                size_hint_y=None,
+                height=dp(40),
+                spacing=dp(2)
+            )
+            
+            with col_header.canvas.before:
+                Color(0.3, 0.5, 0.7, 1)
+                col_header.bg = Rectangle(pos=col_header.pos, size=col_header.size)
+
+            def update_col_header_bg(instance, value):
+                col_header.bg.pos = instance.pos
+                col_header.bg.size = instance.size
+
+            col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
+
+            for col in df.columns:
+                header_label = Label(
+                    text=str(col),
+                    color=(1, 1, 1, 1),
+                    bold=True,
+                    size_hint=(1, None),
+                    height=dp(40),
+                    halign='center',
+                    valign='middle',
+                    font_size=dp(14)
+                )
+                header_label.bind(size=header_label.setter('text_size'))
+                col_header.add_widget(header_label)
+            
+            return col_header
+            
+        except Exception as e:
+            error_label = Label(
+                text=f"Error creating headers: {str(e)}",
+                size_hint_y=None,
+                height=dp(40),
+                color=(0.8, 0.2, 0.2, 1)
+            )
+            return error_label
+    
+    def _create_data_grid(self, table_data):
+        
+        try:
+            df = pd.DataFrame(table_data)
+            data_grid = GridLayout(
+                cols=len(df.columns),
+                size_hint_y=None,
+                spacing=dp(2),
+                padding=[dp(0)]
+            )
+            data_grid.bind(minimum_height=data_grid.setter('height'))
+
+            for i, (_, row) in enumerate(df.iterrows()):
+                row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+
+                for value in row:
+                    cell = BoxLayout(
+                        size_hint_y=None,
+                        height=dp(40),
+                        padding=dp(5)
+                    )
+
+                    with cell.canvas.before:
+                        Color(*row_color)
+                        cell.bg = Rectangle(pos=cell.pos, size=cell.size)
+
+                    def update_cell_bg(instance, value):
+                        instance.bg.pos = instance.pos
+                        instance.bg.size = instance.size
+
+                    cell.bind(pos=update_cell_bg, size=update_cell_bg)
+
+                    value_label = Label(
+                        text=str(value),
+                        color=(0, 0, 0, 1),
+                        halign='center',
+                        valign='middle',
+                        size_hint=(1, 1),
+                        font_size=dp(13)
+                    )
+                    value_label.bind(size=value_label.setter('text_size'))
+                    cell.add_widget(value_label)
+                    data_grid.add_widget(cell)
+
+            # Calculate total height
+            data_grid.height = len(df) * dp(40)
+            return data_grid
+            
+        except Exception as e:
+            error_label = Label(
+                text=f"Error creating data grid: {str(e)}",
+                size_hint_y=None,
+                height=dp(40),
+                color=(0.8, 0.2, 0.2, 1)
+            )
+            return error_label
+    
+    def go_back(self, instance):
+        if self.manager:
+            self.manager.current = 'main'
+
+class MainScreen(Screen):
+    def __init__(self, app, **kwargs):
+        super().__init__(**kwargs)
+        self.name = 'main'
+        self.app = app
+        self.build_ui()
+    
+    def build_ui(self):
+        # Main layout with proper spacing
+        layout = BoxLayout(orientation="vertical", spacing=dp(10))
+        
+        # Header with fixed height and proper padding
+        header = BoxLayout(
+            size_hint_y=None,
+            height=dp(60),  # Fixed height for header
+            padding=[dp(10), dp(5)],  # Adequate padding
+            spacing=dp(10)
+        )
+        
+        # Background for header
+        with header.canvas.before:
+            Color(0.2, 0.4, 0.6, 1)
+            self.header_bg = Rectangle(pos=header.pos, size=header.size)
+        
+        def update_header_bg(instance, value):
+            self.header_bg.pos = instance.pos
+            self.header_bg.size = instance.size
+        
+        header.bind(pos=update_header_bg, size=update_header_bg)
+        
+        # Title label with proper text sizing
+        self.title_label = Label(
+            text="PDF Data Search",
+            font_size=dp(24),
+            color=(1, 1, 1, 1),
+            size_hint_x=0.8,  # Take most of header space
+            halign='left',
+            valign='middle'
+        )
+        self.title_label.bind(
+            width=lambda *x: setattr(self.title_label, 'text_size', (self.title_label.width, None))
+        )
+        
+        
+        # Status label with proper sizing
+        self.status_label = Label(
+            text=f"Last updated: {self.app.last_updated}",
+            color=(1, 1, 1, 1),
+            size_hint_x=0.2,  # Take remaining space
+            halign='right',
+            valign='middle',
+            font_size=dp(14)
+        )
+        self.status_label.bind(
+            width=lambda *x: setattr(self.status_label, 'text_size', (self.status_label.width, None))
+        )
+        
+        header.add_widget(self.title_label)
+        header.add_widget(self.status_label)
+        layout.add_widget(header)
+        
+
+        # Search Area
+        search_box = BoxLayout(size_hint_y=0.15, spacing=dp(10))
+        self.search_input = TextInput(
+            hint_text="Type to search...",
+            multiline=False,
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1),
+            padding=dp(10),
+            font_size=dp(16)
+        )
+        self.search_input.bind(on_text_validate=partial(self.app.do_search, None))
+        search_box.add_widget(self.search_input)
+
+        search_btn = Button(
+            text="Search",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        search_btn.bind(on_press=self.app.do_search)
+        search_box.add_widget(search_btn)
+
+        clear_btn = Button(
+            text="Clear",
+            size_hint_x=0.2,
+            background_color=(0.7, 0.3, 0.3, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        clear_btn.bind(on_press=self.app.clear_search)
+        search_box.add_widget(clear_btn)
+
+        update_btn = Button(
+            text="Update",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        update_btn.bind(on_press=self.app.update_data)
+        search_box.add_widget(update_btn)
+
+        headers_btn = Button(
+            text="Headers",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        headers_btn.bind(on_press=self.app.show_headers_list)
+        search_box.add_widget(headers_btn)
+        headers_btn1 = Button(
+            text="back",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        headers_btn1.bind(on_press=self.back_to_launcher)
+        search_box.add_widget(headers_btn1)
+        
+
+        layout.add_widget(search_box)
+
+        # Results count label
+        self.results_count_label = Label(
+            text="",
+            size_hint_y=None,
+            height=dp(30),
+            color=(0.3, 0.5, 0.7, 1),
+            bold=True,
+            font_size=dp(14)
+        )
+        layout.add_widget(self.results_count_label)
+
+        # Headers List Area - Initially fill available space
+        self.headers_scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=False,
+            do_scroll_y=True
+        )
+        self.headers_layout = GridLayout(
+            cols=1,
+            spacing=dp(5),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.headers_layout.bind(minimum_height=self.headers_layout.setter('height'))
+        self.headers_scroll.add_widget(self.headers_layout)
+        layout.add_widget(self.headers_scroll)
+
+        # Main Results Area - Initially hidden
+        self.main_scroll = ScrollView(
+            size_hint=(1, 0),
+            opacity=0
+        )
+        self.results_container = BoxLayout(
             orientation='vertical',
             size_hint_y=None,
             spacing=dp(15),
-            padding=dp(10)
+            padding=[dp(10), dp(10), dp(10), dp(10)]
         )
-        self.scroll_content.bind(minimum_height=self.scroll_content.setter('height'))
-        self.scroll_view.add_widget(self.scroll_content)
-        self.layout.add_widget(self.scroll_view)
+        self.results_container.bind(minimum_height=self.results_container.setter('height'))
+        self.main_scroll.add_widget(self.results_container)
+        layout.add_widget(self.main_scroll)
 
-        # Add question cards
-        self.question_cards = []
-        for question in self.questions:
-            card = self.create_question_card(question)
-            self.scroll_content.add_widget(card)
-            self.question_cards.append(card)
+        self.add_widget(layout)
+    def back_to_launcher(self, instance):
+        # Relaunch the launcher app
+        
+        App.get_running_app().stop()
 
-        # Bottom buttons
-        self.add_bottom_buttons()
-
-    def create_question_card(self, question):
-        """Create a properly sized card for each question"""
-        card = BoxLayout(
-            orientation='vertical',
-            size_hint=(1, None),
-            spacing=dp(10),
-            padding=dp(15)
-        )
-        
-        # Calculate minimum height based on content
-        min_height = dp(150)  # Base height for buttons and padding
-        
-        # Question text
-        question_label = Label(
-            text=question['question'],
-            size_hint=(1, None),
-            font_size='18sp',
-            bold=True,
-            color=(0, 0, 0, 1),
-            text_size=(Window.width - dp(40), None),
-            halign='left',
-            valign='top'
-        )
-        question_label.bind(
-            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
-        card.add_widget(question_label)
-        min_height += question_label.height
-        
-        # Options text
-        options_text = "Options: " + ", ".join(question['options'])
-        options_label = Label(
-            text=options_text,
-            size_hint=(1, None),
-            font_size='16sp',
-            color=(0.4, 0.4, 0.4, 1),
-            text_size=(Window.width - dp(40), None),
-            halign='left'
-        )
-        options_label.bind(
-            texture_size=lambda lbl, val: setattr(lbl, 'height', val[1] + dp(10)))
-        card.add_widget(options_label)
-        min_height += options_label.height
-        
-        # Buttons
-        button_layout = BoxLayout(
-            orientation='horizontal',
-            size_hint=(1, None),
-            height=dp(50),
-            spacing=dp(10))
-        
-        edit_button = Button(
-            text="EDIT",
-            size_hint=(0.5, None),
-            height=dp(45),
-            background_color=(0.2, 0.8, 0.2, 1),
-            color=(1, 1, 1, 1),
-            font_size='16sp'
-        )
-        edit_button.bind(on_press=lambda instance, q=question: self.edit_question(q))
-        
-        delete_button = Button(
-            text="DELETE",
-            size_hint=(0.5, None),
-            height=dp(45),
-            background_color=(0.8, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1),
-            font_size='16sp'
-        )
-        delete_button.bind(on_press=lambda instance, q=question: self.delete_question(q))
-        
-        button_layout.add_widget(edit_button)
-        button_layout.add_widget(delete_button)
-        card.add_widget(button_layout)
-        
-        # Set minimum height
-        card.height = min_height
-        
-        # Card styling
-        with card.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)  # Light gray background
-            self.rect = RoundedRectangle(
-                size=card.size,
-                pos=card.pos,
-                radius=[dp(15)]
-            )
-        card.bind(
-            size=self._update_card_rect,
-            pos=self._update_card_rect
-        )
-        
-        return card
-
-    def add_bottom_buttons(self):
-        """Add the bottom action buttons"""
-        button_layout = BoxLayout(
-            orientation='horizontal',
-            size_hint=(1, None),
-            height=dp(60),
-            spacing=dp(10),
-            padding=dp(10)
-        )
-        
-        add_button = Button(
-            text="ADD NEW QUESTION",
-            background_color=(0.2, 0.6, 1, 1),
-            color=(1, 1, 1, 1),
-            font_size='16sp'
-        )
-        add_button.bind(on_press=self.add_question)
-        
-        back_button = Button(
-            text="BACK TO MAIN",
-            background_color=(0.8, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1),
-            font_size='16sp'
-        )
-        back_button.bind(on_press=self.switch_to_main)
-        
-        button_layout.add_widget(add_button)
-        button_layout.add_widget(back_button)
-        self.layout.add_widget(button_layout)
-
-    def _update_card_rect(self, instance, value):
-        """Update the card's background rectangle"""
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(0.95, 0.95, 0.95, 1)
-            RoundedRectangle(
-                size=instance.size,
-                pos=instance.pos,
-                radius=[dp(15)]
-            )
-
-    def edit_question(self, question):
-        self.manager.current = "edit_question"
-        self.manager.get_screen("edit_question").load_question(question)
-        self.refresh_data(None)
-
-    def delete_question(self, question):
-        # Confirmation popup before deletion
-        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        content.add_widget(Label(
-            text=f"Delete this question?\n\n{question['question']}",
-            halign='center',
-            text_size=(Window.width * 0.7, None)))
-        
-        btn_box = BoxLayout(size_hint=(1, 0.3), spacing=10)
-        yes_btn = Button(text="Delete", background_color=(0.8, 0.2, 0.2, 1))
-        no_btn = Button(text="Cancel", background_color=(0.4, 0.4, 0.4, 1))
-        
-        btn_box.add_widget(no_btn)
-        btn_box.add_widget(yes_btn)
-        content.add_widget(btn_box)
-        
-        popup = Popup(
-            title="Confirm Deletion",
-            content=content,
-            size_hint=(0.8, 0.4),
-            auto_dismiss=False)
-        
-        no_btn.bind(on_press=popup.dismiss)
-        yes_btn.bind(on_press=lambda x: self._confirm_delete(question, popup))
-        popup.open()
-
-    def _confirm_delete(self, question, popup):
-        self.questions.remove(question)
-        if update_github_file(App.get_running_app().access_token, self.questions):
-            self.show_popup("Success", "Question deleted successfully!")
-            self.refresh_data(None)
-        else:
-            self.show_popup("Error", "Failed to update on GitHub")
-        popup.dismiss()
-
-    def add_question(self, instance):
-        self.manager.current = "add_question"
-
-    def switch_to_main(self, instance):
-        main_screen = self.manager.get_screen("main")
-        if (main_screen):
-            main_screen.refresh_data(None)
-        self.manager.current = "main"
-
-    def show_popup(self, title, message):
-        content = BoxLayout(orientation='vertical', padding=10)
-        content.add_widget(Label(text=message))
-        ok_btn = Button(text="OK", size_hint=(1, 0.4))
-        popup = Popup(title=title, content=content, size_hint=(0.7, 0.4))
-        ok_btn.bind(on_press=popup.dismiss)
-        content.add_widget(ok_btn)
-        popup.open()
-
-    def refresh_data(self, instance=None):
-        """Refresh the UI by fetching the latest questions and rebuilding the UI."""
-        Clock.schedule_once(self._refresh_ui, 0.1)  # Schedule after 0.1 seconds
-
-    def _refresh_ui(self, dt):
-        """Internal method to refresh the UI."""
-        self.fetch_questions()
-        self.create_ui()
-
-    def start_progress_animation(self):
-        """Start the progress bar animation."""
-        self.progress_bar.value = 0
-        self.animation_event = Clock.schedule_interval(self.update_progress, 0.1)  # Update every 0.1 seconds
-
-    def stop_progress_animation(self):
-        """Stop the progress bar animation."""
-        if self.animation_event:
-            self.animation_event.cancel()
-            self.animation_event = None
-
-    def update_progress(self, dt):
-        """Update the progress bar value."""
-        if self.progress_bar.value < self.progress_bar.max:
-            self.progress_bar.value += 1  # Increment progress
-        else:
-            self.stop_progress_animation()  # Stop when progress reaches 100%
-class AddQuestionScreen(BaseScreen):
+class SearchApp(App):
+    github_data_url = StringProperty("")
+    last_updated = StringProperty("Never")
+    show_headers = BooleanProperty(True)
+    search_results_count = NumericProperty(0)
+    current_open_header = StringProperty("")
+    sm = ObjectProperty(None, allownone=True)
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.create_ui()
-        self.add_widget(self.layout)
+        self.proxies = {"https": "http://10.0.9.40:8080"}
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        }
+        self.conn = None
+        self.cursor = None
 
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+    def build(self):
+        self.setup_database()
+        self.sm = ScreenManager()
+        
+        # Create main screen
+        main_screen = MainScreen(self)
+        self.sm.add_widget(main_screen)
+        
+        # Setup auto-update
+        Clock.schedule_interval(self.check_for_updates, 3600)
+        Clock.schedule_once(lambda dt: self.load_headers_list(), 0.5)
 
+        return self.sm
 
-    def create_ui(self):
-        self.layout.clear_widgets()
+    @property
+    def main_screen(self):
+        if self.sm and 'main' in self.sm.screen_names:
+            return self.sm.get_screen('main')
+        return None
 
-        # Heading
-        heading = Label(
-            text="Add New Question",
-            size_hint_y=None,
-            height=dp(50),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
+    def setup_database(self):
+        self.conn = sqlite3.connect("unit3.db")
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS pdf_data (
+                id INTEGER PRIMARY KEY,
+                table_key TEXT,
+                header TEXT,
+                table_data TEXT,
+                last_updated TEXT
+            )
+            '''
         )
-        self.layout.add_widget(heading)
+        self.conn.commit()
+        self.load_data_from_db()
 
-        # Question Input
-        self.question_input = TextInput(
-            hint_text="Enter question",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.question_input)
+    def load_data_from_db(self):
+        if not self.cursor:
+            return
+            
+        self.cursor.execute("SELECT * FROM pdf_data")
+        rows = self.cursor.fetchall()
+        if rows:
+            self.last_updated = rows[0][4] if len(rows[0]) > 4 else "Never"
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Last updated: {self.last_updated}"
 
-        # Options Input
-        self.options_input = TextInput(
-            hint_text="Enter options (comma-separated)",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.options_input)
+    def load_headers_list(self):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.headers_layout or not self.cursor:
+            return
+            
+        main_screen.headers_layout.clear_widgets()
+        
+        self.cursor.execute("SELECT DISTINCT table_key, header FROM pdf_data")
+        headers = self.cursor.fetchall()
 
-        # Answer Input
-        self.answer_input = TextInput(
-            hint_text="Enter correct answers (comma-separated)",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.answer_input)
+        for table_key, header in headers:
+            btn = Button(
+                text=f"{table_key}: {header[:50]}{'...' if len(header) > 50 else ''}",
+                size_hint_y=None,
+                height=dp(40),
+                background_color=(0.8, 0.8, 0.9, 1),
+                background_normal='',
+                color=(0, 0, 0, 1),
+                font_size=dp(14)
+            )
+            btn.table_key = table_key
+            btn.header_text = header
+            btn.bind(on_press=self.on_header_click)
+            main_screen.headers_layout.add_widget(btn)
 
-        # Reference Input
-        self.reference_input = TextInput(
-            hint_text="Enter reference URL",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.reference_input)
+    def on_header_click(self, instance):
+        if not self.cursor or not self.sm:
+            return
+            
+        self.cursor.execute(
+            "SELECT table_data FROM pdf_data WHERE table_key = ? LIMIT 1",
+            (instance.table_key,))
+        result = self.cursor.fetchone()
+        if result:
+            try:
+                table_data = json.loads(result[0])
+                # Check if screen already exists
+                if instance.table_key in self.sm.screen_names:
+                    self.sm.current = instance.table_key
+                else:
+                    table_screen = TableViewScreen(
+                        instance.table_key,
+                        instance.header_text,
+                        table_data
+                    )
+                    self.sm.add_widget(table_screen)
+                    self.sm.current = instance.table_key
+            except json.JSONDecodeError:
+                main_screen = self.main_screen
+                if main_screen and main_screen.results_container:
+                    error_label = Label(
+                        text="Error: Could not load table data",
+                        size_hint_y=None,
+                        height=dp(40),
+                        color=(0.8, 0.2, 0.2, 1)
+                    )
+                    main_screen.results_container.add_widget(error_label)
 
-        # Add Question Button
-        add_button = Button(
-            text="Add Question",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),
-            color=(1, 1, 1, 1)
-        )
-        add_button.bind(on_press=self.add_question)
-        self.layout.add_widget(add_button)
+    def show_headers_list(self, instance):
+        
+        self.clear_search(instance)
+        self.toggle_headers_list(instance)
 
-        # Back to Admin Button
-        back_button = Button(
-            text="Back to Admin",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.8, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1)
-        )
-        back_button.bind(on_press=self.switch_to_admin)
-        self.layout.add_widget(back_button)
-
-    def on_keyboard(self, window, key, *args):
-        if key == 27:  # Escape key
-            return True
-        return False
-
-    def on_keyboard_height(self, window, height):
-        if height > 0:
-            self.layout.height = Window.height - height
+    def toggle_headers_list(self, instance):
+        main_screen = self.main_screen
+        if not main_screen:
+            return
+            
+        self.show_headers = not self.show_headers
+        
+        if self.show_headers:
+            # Show headers, hide results
+            anim = Animation(size_hint_y=1, duration=0.2)
+            anim &= Animation(opacity=1, duration=0.2)
+            anim.start(main_screen.headers_scroll)
+            
+            anim2 = Animation(size_hint_y=0, duration=0.2)
+            anim2 &= Animation(opacity=0, duration=0.2)
+            anim2.start(main_screen.main_scroll)
         else:
-            self.layout.height = Window.height
+            # Show results, hide headers
+            anim = Animation(size_hint_y=0, duration=0.2)
+            anim &= Animation(opacity=0, duration=0.2)
+            anim.start(main_screen.headers_scroll)
+            
+            anim2 = Animation(size_hint_y=1, duration=0.2)
+            anim2 &= Animation(opacity=1, duration=0.2)
+            anim2.start(main_screen.main_scroll)
 
-    def add_question(self, instance):
-        question = self.question_input.text.strip()
-        options = [opt.strip() for opt in self.options_input.text.split(",")]
-        answers = [ans.strip() for ans in self.answer_input.text.split(",")]
-        reference = self.reference_input.text.strip()
+    def clear_search(self, instance):
+        main_screen = self.main_screen
+        if not main_screen:
+            return
+            
+        if main_screen.search_input:
+            main_screen.search_input.text = ""
+        
+        # Show headers full screen again
+        self.show_headers = True
+        anim = Animation(size_hint_y=1, duration=0.2)
+        anim &= Animation(opacity=1, duration=0.2)
+        anim.start(main_screen.headers_scroll)
+        
+        anim2 = Animation(size_hint_y=0, duration=0.2)
+        anim2 &= Animation(opacity=0, duration=0.2)
+        anim2.start(main_screen.main_scroll)
+        
+        if main_screen.results_container:
+            main_screen.results_container.clear_widgets()
+        if main_screen.results_count_label:
+            main_screen.results_count_label.text = ""
+    def update_data(self, instance=None):
+        try:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = "Updating data..."
+            
+            # Show loading modal
+            self.loading_modal = ModalView(size_hint=(0.5, 0.2))
+            loading_box = BoxLayout(orientation='vertical', padding=dp(20))
+            loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
+            self.loading_modal.add_widget(loading_box)
+            self.loading_modal.open()
+            
+            Clock.schedule_once(self._perform_update, 0.1)
+        except Exception as e:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Update failed: {str(e)}"
 
-        if not question or not options or not answers:
-            self.show_popup("Error", "Please fill in all fields.")
+    def _perform_update(self, *args):
+        try:
+            if not self.conn or not self.cursor:
+                raise Exception("Database not initialized")
+                
+            response = requests.get(
+                self.github_data_url,
+               # proxies=self.proxies,
+                headers=self.headers,
+                timeout=10,
+                verify=False
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            with self.conn:
+                self.cursor.execute("DELETE FROM pdf_data")
+                for key, value in data.items():
+                    self.cursor.execute(
+                        '''
+                        INSERT INTO pdf_data (table_key, header, table_data, last_updated)
+                        VALUES (?, ?, ?, ?)
+                        ''',
+                        (
+                            key,
+                            value.get("header", ""),
+                            json.dumps(value.get("table", [])),
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        ),
+                    )
+
+            self.last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Last updated: {self.last_updated}"
+            
+            self.load_headers_list()
+            
+            # Close loading modal
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
+
+        except Exception as e:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                self.main_screen.status_label.text = f"Update failed: {str(e)}"
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
+
+    def do_search(self, instance):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.search_input or not main_screen.results_container:
+            return
+            
+        search_term = main_screen.search_input.text.strip().lower()
+        if not search_term:
             return
 
-        new_question = {
-            "id": str(uuid.uuid4()),
-            "question": question,
-            "options": options,
-            "answers": answers,
-            "reference": reference
-        }
+        # Hide headers and show results
+        self.show_headers = False
+        anim = Animation(size_hint_y=0, duration=0.2)
+        anim &= Animation(opacity=0, duration=0.2)
+        anim.start(main_screen.headers_scroll)
+        
+        anim2 = Animation(size_hint_y=1, duration=0.2)
+        anim2 &= Animation(opacity=1, duration=0.2)
+        anim2.start(main_screen.main_scroll)
+        
+        main_screen.results_container.clear_widgets()
 
-        admin_screen = self.manager.get_screen("admin")
-        admin_screen.questions.append(new_question)
+        # Show loading indicator
+        loading = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(40))
+        loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
+        main_screen.results_container.add_widget(loading)
 
-        if update_github_file(App.get_running_app().access_token, admin_screen.questions):
-            self.show_popup("Success", "Question added and file updated on GitHub.")
-            admin_screen.refresh_data(None)
-            self.manager.current = "admin"
+        self.search_term = search_term
+        self.current_search_index = 0
+        self.search_results_count = 0
+        if self.cursor:
+            self.cursor.execute("SELECT table_key, header, table_data FROM pdf_data")
+            self.all_data = self.cursor.fetchall()
+
+        Clock.schedule_once(partial(self._process_next_table), 0.1)
+
+    def _process_next_table(self, *args):
+        if not hasattr(self, 'all_data') or self.current_search_index >= len(self.all_data):
+            if self.search_results_count == 0:
+                main_screen = self.main_screen
+                if main_screen and main_screen.results_count_label:
+                    main_screen.results_count_label.text = "No results found"
+                if main_screen and main_screen.results_container:
+                    no_results = Label(
+                        text="No results found",
+                        size_hint_y=None,
+                        height=dp(40),
+                        color=(0.8, 0.2, 0.2, 1)
+                    )
+                    main_screen.results_container.add_widget(no_results)
+            return
+
+        table_key, header, table_data = self.all_data[self.current_search_index]
+        self.current_search_index += 1
+
+        header_matches = self.search_term in header.lower()
+        table_matches = []
+
+        try:
+            data = json.loads(table_data)
+            if isinstance(data, list):
+                table_matches = [
+                    row for row in data
+                    if any(self.search_term in str(value).lower() for value in row.values())
+                ]
+        except json.JSONDecodeError:
+            Clock.schedule_once(partial(self._process_next_table), 0)
+            return
+
+        if header_matches or table_matches:
+            self.search_results_count += len(table_matches) if table_matches else 1
+            self._add_table_result(table_key, header, table_matches if table_matches else data, header_matches)
+
+        Clock.schedule_once(partial(self._process_next_table), 0.01)
+
+    def _add_table_result(self, table_key, header, table_data, is_header_match):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.results_container or not main_screen.results_count_label:
+            return
+
+        section = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(10),
+            padding=[dp(10), dp(10), dp(10), dp(10)]
+        )
+
+        # Header with click to open in new screen
+        header_btn = Button(
+            text=f"[b]{table_key}:[/b] {header[:100]}{'...' if len(header) > 100 else ''}",
+            size_hint_y=None,
+            height=dp(45),
+            markup=True,
+            halign='left',
+            valign='middle',
+            background_color=(0.2, 0.6, 0.4, 1) if is_header_match else (0.3, 0.5, 0.7, 1),
+            background_normal='',
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        header_btn.table_key = table_key
+        header_btn.header_text = header
+        header_btn.table_data = table_data
+        header_btn.bind(on_press=self.on_search_result_click)
+        section.add_widget(header_btn)
+
+        # Table content
+        if isinstance(table_data, list) and table_data:
+            try:
+                df = pd.DataFrame(table_data)
+                table_widget = self._create_table_widget(df)
+                section.add_widget(table_widget)
+                
+                # Calculate heights
+                header_height = header_btn.height
+                table_height = table_widget.height
+                spacing = section.spacing
+                padding = sum(section.padding[1::2])
+                
+                section.height = header_height + table_height + spacing + padding
+                
+            except Exception as e:
+                error_label = Label(
+                    text=f"Error displaying table: {str(e)}",
+                    size_hint_y=None,
+                    height=dp(40),
+                    color=(0.8, 0.2, 0.2, 1)
+                )
+                section.add_widget(error_label)
+                section.height = header_btn.height + dp(50)
         else:
-            self.show_popup("Error", "Failed to update file on GitHub.")
+            section.height = header_btn.height + dp(10)
 
-    def switch_to_admin(self, instance):
-        self.manager.current = "admin"
+        main_screen.results_container.add_widget(section)
+        main_screen.results_count_label.text = f"Results: {self.search_results_count}"
 
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-class EditQuestionScreen(BaseScreen):
+    def _create_table_widget(self, df):
+        
+        table_container = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(2),
+            padding=[dp(5), dp(5)]
+        )
+        
+        # Column headers
+        col_header = GridLayout(
+            cols=len(df.columns),
+            size_hint_y=None,
+            height=dp(40),
+            spacing=dp(5)
+        )
+        
+        with col_header.canvas.before:
+            Color(0.3, 0.5, 0.7, 1)
+            col_header.bg = Rectangle(pos=col_header.pos, size=col_header.size)
+
+        def update_col_header_bg(instance, value):
+            col_header.bg.pos = instance.pos
+            col_header.bg.size = instance.size
+
+        col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
+
+        for col in df.columns:
+            col_label = Label(
+                text=str(col),
+                color=(1, 1, 1, 1),
+                bold=True,
+                size_hint=(1, None),
+                height=dp(40),
+                halign='center',
+                valign='middle',
+                font_size=dp(14)
+            )
+            col_label.bind(size=col_label.setter('text_size'))
+            col_header.add_widget(col_label)
+
+        table_container.add_widget(col_header)
+
+        # Data rows
+        data_grid = GridLayout(
+            cols=len(df.columns),
+            size_hint_y=None,
+            spacing=dp(2),
+            padding=[dp(0)]
+        )
+        data_grid.bind(minimum_height=data_grid.setter('height'))
+
+        for i, (_, row) in enumerate(df.iterrows()):
+            row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+
+            for value in row:
+                cell = BoxLayout(
+                    size_hint_y=None,
+                    height=dp(40),
+                    padding=dp(5)
+                )
+
+                with cell.canvas.before:
+                    Color(*row_color)
+                    cell.bg = Rectangle(pos=cell.pos, size=cell.size)
+
+                def update_cell_bg(instance, value):
+                    instance.bg.pos = instance.pos
+                    instance.bg.size = instance.size
+
+                cell.bind(pos=update_cell_bg, size=update_cell_bg)
+
+                value_label = Label(
+                    text=str(value),
+                    color=(0, 0, 0, 1),
+                    halign='center',
+                    valign='middle',
+                    size_hint=(1, 1),
+                    font_size=dp(13)
+                )
+                value_label.bind(size=value_label.setter('text_size'))
+                cell.add_widget(value_label)
+                data_grid.add_widget(cell)
+
+        table_container.add_widget(data_grid)
+        
+        # Calculate total table height
+        table_container.height = dp(40) + (len(df) * dp(40)) + dp(10)
+        
+        return table_container
+
+    def on_search_result_click(self, instance):
+        if not self.sm:
+            return
+            
+        # Check if screen already exists
+        if instance.table_key in self.sm.screen_names:
+            self.sm.current = instance.table_key
+        else:
+            table_screen = TableViewScreen(
+                instance.table_key,
+                instance.header_text,
+                instance.table_data
+            )
+            self.sm.add_widget(table_screen)
+            self.sm.current = instance.table_key
+
+    def check_for_updates(self, dt):
+        try:
+            if not self.github_data_url:
+                return
+                
+            response = requests.head(
+                self.github_data_url,
+               # proxies=self.proxies,
+                headers=self.headers,
+                timeout=5,
+                verify=False
+            )
+            response.raise_for_status()
+            github_last_modified = response.headers.get("Last-Modified", "")
+            if github_last_modified and self.cursor:
+                self.cursor.execute("SELECT last_updated FROM pdf_data LIMIT 1")
+                local_last_updated = self.cursor.fetchone()
+                if local_last_updated and github_last_modified > local_last_updated[0]:
+                    self.update_data()
+        except requests.RequestException:
+            pass
+
+    def on_stop(self):
+        if self.conn:
+            self.conn.close()
+
+if __name__ == "__main__":
+    app = SearchApp()
+    app.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data.json"
+    app.run()
+"""
+            )
+        
+        # Launch the PDF search app
+        try:
+            subprocess.Popen([sys.executable, file_name])
+        except Exception as e:
+            print(f"Error launching PDF Search: {e}")
+    
+    @staticmethod
+    def save_code_to_file(file_name: str, code_content: str):
+        """
+        Save the given code content to a specified `.py` file using UTF-8 encoding.
+
+        Args:
+            file_name (str): The name of the file to save the code to (must end with `.py`).
+            code_content (str): The code to be written into the file.
+
+        Returns:
+            None
+        """
+        if not file_name.endswith('.py'):
+            raise ValueError("The file name must end with '.py'")
+        try:
+            with open(file_name, "w", encoding="utf-8") as file:  # Specify UTF-8 encoding
+                file.write(code_content)
+            print(f"Code successfully saved to {file_name}")
+        except Exception as e:
+            print(f"An error occurred while saving to {file_name}: {e}")
+    def launch_pdf_search1(self, instance):
+        # Check if PDF search app exists
+        
+        #App.get_running_app().stop()
+        file_name = "unit4.py"
+        if not os.path.exists(file_name):
+            self.save_code_to_file(
+                file_name=file_name,
+                code_content="""\
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.properties import StringProperty, BooleanProperty, NumericProperty, ObjectProperty
+from kivy.clock import Clock
+from kivy.metrics import dp
+from kivy.graphics import Color, Rectangle
+from kivy.animation import Animation
+import requests
+import json
+import sqlite3
+from datetime import datetime
+import pandas as pd
+from functools import partial
+from kivy.core.window import Window
+from kivy.uix.modalview import ModalView
+
+
+class TableViewScreen(Screen):
+    def __init__(self, table_key, header, table_data, **kwargs):
+        super().__init__(**kwargs)
+        self.name = table_key
+        self.table_key = table_key
+        self.header = header
+        self.table_data = table_data
+        
+        # Main layout
+        main_layout = BoxLayout(orientation='vertical')
+        
+        # Fixed header with back button
+        header_box = BoxLayout(
+            size_hint_y=None, 
+            height=dp(60),
+            padding=dp(10),
+            spacing=dp(10)
+        )
+        with header_box.canvas.before:
+            Color(0.2, 0.4, 0.6, 1)
+            self.header_bg = Rectangle(pos=header_box.pos, size=header_box.size)
+        
+        def update_header_bg(instance, value):
+            self.header_bg.pos = instance.pos
+            self.header_bg.size = instance.size
+        
+        header_box.bind(pos=update_header_bg, size=update_header_bg)
+        
+        back_btn = Button(
+            text="← Back",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        back_btn.bind(on_press=self.go_back)
+        header_box.add_widget(back_btn)
+        
+        title = Label(
+            text=f"[b]{table_key}:[/b] {header[:100]}{'...' if len(header) > 100 else ''}",
+            markup=True,
+            halign='left',
+            valign='middle',
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        header_box.add_widget(title)
+        main_layout.add_widget(header_box)
+        
+        # Container for table with fixed column headers
+        table_container = BoxLayout(orientation='vertical')
+        
+        # Create column headers (fixed)
+        self.column_headers = self._create_column_headers(table_data)
+        table_container.add_widget(self.column_headers)
+        
+        # Scrollable data area
+        self.data_scroll = ScrollView(
+            size_hint=(1, 1),
+            bar_width=dp(10),
+            scroll_type=['bars', 'content']
+        )
+        
+        # Data grid
+        self.data_grid = self._create_data_grid(table_data)
+        self.data_scroll.add_widget(self.data_grid)
+        table_container.add_widget(self.data_scroll)
+        
+        main_layout.add_widget(table_container)
+        self.add_widget(main_layout)
+    
+    def _create_column_headers(self, table_data):
+        
+        try:
+            df = pd.DataFrame(table_data)
+            col_header = GridLayout(
+                cols=len(df.columns),
+                size_hint_y=None,
+                height=dp(40),
+                spacing=dp(2)
+            )
+            
+            with col_header.canvas.before:
+                Color(0.3, 0.5, 0.7, 1)
+                col_header.bg = Rectangle(pos=col_header.pos, size=col_header.size)
+
+            def update_col_header_bg(instance, value):
+                col_header.bg.pos = instance.pos
+                col_header.bg.size = instance.size
+
+            col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
+
+            for col in df.columns:
+                header_label = Label(
+                    text=str(col),
+                    color=(1, 1, 1, 1),
+                    bold=True,
+                    size_hint=(1, None),
+                    height=dp(40),
+                    halign='center',
+                    valign='middle',
+                    font_size=dp(14)
+                )
+                header_label.bind(size=header_label.setter('text_size'))
+                col_header.add_widget(header_label)
+            
+            return col_header
+            
+        except Exception as e:
+            error_label = Label(
+                text=f"Error creating headers: {str(e)}",
+                size_hint_y=None,
+                height=dp(40),
+                color=(0.8, 0.2, 0.2, 1)
+            )
+            return error_label
+    
+    def _create_data_grid(self, table_data):
+        
+        try:
+            df = pd.DataFrame(table_data)
+            data_grid = GridLayout(
+                cols=len(df.columns),
+                size_hint_y=None,
+                spacing=dp(2),
+                padding=[dp(0)]
+            )
+            data_grid.bind(minimum_height=data_grid.setter('height'))
+
+            for i, (_, row) in enumerate(df.iterrows()):
+                row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+
+                for value in row:
+                    cell = BoxLayout(
+                        size_hint_y=None,
+                        height=dp(40),
+                        padding=dp(5)
+                    )
+
+                    with cell.canvas.before:
+                        Color(*row_color)
+                        cell.bg = Rectangle(pos=cell.pos, size=cell.size)
+
+                    def update_cell_bg(instance, value):
+                        instance.bg.pos = instance.pos
+                        instance.bg.size = instance.size
+
+                    cell.bind(pos=update_cell_bg, size=update_cell_bg)
+
+                    value_label = Label(
+                        text=str(value),
+                        color=(0, 0, 0, 1),
+                        halign='center',
+                        valign='middle',
+                        size_hint=(1, 1),
+                        font_size=dp(13)
+                    )
+                    value_label.bind(size=value_label.setter('text_size'))
+                    cell.add_widget(value_label)
+                    data_grid.add_widget(cell)
+
+            # Calculate total height
+            data_grid.height = len(df) * dp(40)
+            return data_grid
+            
+        except Exception as e:
+            error_label = Label(
+                text=f"Error creating data grid: {str(e)}",
+                size_hint_y=None,
+                height=dp(40),
+                color=(0.8, 0.2, 0.2, 1)
+            )
+            return error_label
+    
+    def go_back(self, instance):
+        if self.manager:
+            self.manager.current = 'main'
+
+class MainScreen(Screen):
+    def __init__(self, app, **kwargs):
+        super().__init__(**kwargs)
+        self.name = 'main'
+        self.app = app
+        self.build_ui()
+    
+    def build_ui(self):
+        # Main layout with proper spacing
+        layout = BoxLayout(orientation="vertical", spacing=dp(10))
+        
+        # Header with fixed height and proper padding
+        header = BoxLayout(
+            size_hint_y=None,
+            height=dp(60),  # Fixed height for header
+            padding=[dp(10), dp(5)],  # Adequate padding
+            spacing=dp(10)
+        )
+        
+        # Background for header
+        with header.canvas.before:
+            Color(0.2, 0.4, 0.6, 1)
+            self.header_bg = Rectangle(pos=header.pos, size=header.size)
+        
+        def update_header_bg(instance, value):
+            self.header_bg.pos = instance.pos
+            self.header_bg.size = instance.size
+        
+        header.bind(pos=update_header_bg, size=update_header_bg)
+        
+        # Title label with proper text sizing
+        self.title_label = Label(
+            text="PDF Data Search",
+            font_size=dp(24),
+            color=(1, 1, 1, 1),
+            size_hint_x=0.8,  # Take most of header space
+            halign='left',
+            valign='middle'
+        )
+        self.title_label.bind(
+            width=lambda *x: setattr(self.title_label, 'text_size', (self.title_label.width, None))
+        )
+        
+        
+        # Status label with proper sizing
+        self.status_label = Label(
+            text=f"Last updated: {self.app.last_updated}",
+            color=(1, 1, 1, 1),
+            size_hint_x=0.2,  # Take remaining space
+            halign='right',
+            valign='middle',
+            font_size=dp(14)
+        )
+        self.status_label.bind(
+            width=lambda *x: setattr(self.status_label, 'text_size', (self.status_label.width, None))
+        )
+        
+        header.add_widget(self.title_label)
+        header.add_widget(self.status_label)
+        layout.add_widget(header)
+        
+
+        # Search Area
+        search_box = BoxLayout(size_hint_y=0.15, spacing=dp(10))
+        self.search_input = TextInput(
+            hint_text="Type to search...",
+            multiline=False,
+            background_color=(1, 1, 1, 1),
+            foreground_color=(0, 0, 0, 1),
+            padding=dp(10),
+            font_size=dp(16)
+        )
+        self.search_input.bind(on_text_validate=partial(self.app.do_search, None))
+        search_box.add_widget(self.search_input)
+
+        search_btn = Button(
+            text="Search",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        search_btn.bind(on_press=self.app.do_search)
+        search_box.add_widget(search_btn)
+
+        clear_btn = Button(
+            text="Clear",
+            size_hint_x=0.2,
+            background_color=(0.7, 0.3, 0.3, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        clear_btn.bind(on_press=self.app.clear_search)
+        search_box.add_widget(clear_btn)
+
+        update_btn = Button(
+            text="Update",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        update_btn.bind(on_press=self.app.update_data)
+        search_box.add_widget(update_btn)
+
+        headers_btn = Button(
+            text="Headers",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        headers_btn.bind(on_press=self.app.show_headers_list)
+        search_box.add_widget(headers_btn)
+        headers_btn1 = Button(
+            text="back",
+            size_hint_x=0.2,
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        headers_btn1.bind(on_press=self.back_to_launcher)
+        search_box.add_widget(headers_btn1)
+        
+
+        layout.add_widget(search_box)
+
+        # Results count label
+        self.results_count_label = Label(
+            text="",
+            size_hint_y=None,
+            height=dp(30),
+            color=(0.3, 0.5, 0.7, 1),
+            bold=True,
+            font_size=dp(14)
+        )
+        layout.add_widget(self.results_count_label)
+
+        # Headers List Area - Initially fill available space
+        self.headers_scroll = ScrollView(
+            size_hint=(1, 1),
+            do_scroll_x=False,
+            do_scroll_y=True
+        )
+        self.headers_layout = GridLayout(
+            cols=1,
+            spacing=dp(5),
+            size_hint_y=None,
+            padding=dp(10)
+        )
+        self.headers_layout.bind(minimum_height=self.headers_layout.setter('height'))
+        self.headers_scroll.add_widget(self.headers_layout)
+        layout.add_widget(self.headers_scroll)
+
+        # Main Results Area - Initially hidden
+        self.main_scroll = ScrollView(
+            size_hint=(1, 0),
+            opacity=0
+        )
+        self.results_container = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(15),
+            padding=[dp(10), dp(10), dp(10), dp(10)]
+        )
+        self.results_container.bind(minimum_height=self.results_container.setter('height'))
+        self.main_scroll.add_widget(self.results_container)
+        layout.add_widget(self.main_scroll)
+
+        self.add_widget(layout)
+    def back_to_launcher(self, instance):
+        # Relaunch the launcher app
+        
+        App.get_running_app().stop()
+
+class SearchApp(App):
+    github_data_url = StringProperty("")
+    last_updated = StringProperty("Never")
+    show_headers = BooleanProperty(True)
+    search_results_count = NumericProperty(0)
+    current_open_header = StringProperty("")
+    sm = ObjectProperty(None, allownone=True)
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        self.create_ui()
-        self.add_widget(self.layout)
+        self.proxies = {"https": "http://10.0.9.40:8080"}
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+        }
+        self.conn = None
+        self.cursor = None
 
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
-
-
-    def create_ui(self):
-        self.layout.clear_widgets()
-
-        # Heading
-        heading = Label(
-            text="Edit Question",
-            size_hint_y=None,
-            height=dp(50),
-            font_size='24sp',
-            bold=True,
-            color=(0.2, 0.6, 1, 1)  # Blue color
-        )
-        self.layout.add_widget(heading)
-
-        # Question Input
-        self.question_input = TextInput(
-            hint_text="Enter question",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.question_input)
-
-        # Options Input
-        self.options_input = TextInput(
-            hint_text="Enter options (comma-separated)",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.options_input)
-
-        # Answer Input
-        self.answer_input = TextInput(
-            hint_text="Enter correct answers (comma-separated)",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.answer_input)
-
-        # Reference Input
-        self.reference_input = TextInput(
-            hint_text="Enter reference URL",
-            multiline=False,
-            size_hint_y=None,
-            height=dp(40),
-            padding=[10, 0],
-            background_color=(1, 1, 1, 1),
-            foreground_color=(0, 0, 0, 1)
-        )
-        self.layout.add_widget(self.reference_input)
-
-        # Save Changes Button
-        save_button = Button(
-            text="Save Changes",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.2, 0.6, 1, 1),
-            color=(1, 1, 1, 1)
-        )
-        save_button.bind(on_press=self.save_question)
-        self.layout.add_widget(save_button)
-
-        # Back to Admin Button
-        back_button = Button(
-            text="Back to Admin",
-            size_hint_y=None,
-            height=dp(50),
-            background_color=(0.8, 0.2, 0.2, 1),
-            color=(1, 1, 1, 1)
-        )
-        back_button.bind(on_press=self.switch_to_admin)
-        self.layout.add_widget(back_button)
-
-    def on_keyboard(self, window, key, *args):
-        if key == 27:  # Escape key
-            return True
-        return False
-
-    def on_keyboard_height(self, window, height):
-        if height > 0:
-            self.layout.height = Window.height - height
-        else:
-            self.layout.height = Window.height
-
-    def load_question(self, question):
-        self.question = question
-        self.question_input.text = question['question']
-        self.options_input.text = ", ".join(question['options'])
-        self.answer_input.text = ", ".join(question['answers'])
-        self.reference_input.text = question['reference']
-
-    def save_question(self, instance):
-        # Update the question data
-        self.question['question'] = self.question_input.text.strip()
-        self.question['options'] = [opt.strip() for opt in self.options_input.text.split(",")]
-        self.question['answers'] = [ans.strip() for ans in self.answer_input.text.split(",")]
-        self.question['reference'] = self.reference_input.text.strip()
-
-        # Get the AdminScreen instance
-        admin_screen = self.manager.get_screen("admin")
-
-        # Update the questions list in AdminScreen
-        for i, q in enumerate(admin_screen.questions):
-            if q['id'] == self.question['id']:
-                admin_screen.questions[i] = self.question
-                break
-
-        # Update the file on GitHub
-        if update_github_file(App.get_running_app().access_token, admin_screen.questions):
-            self.show_popup("Success", "Question updated and file updated on GitHub.")
-            admin_screen.refresh_data(None)  # Refresh the AdminScreen UI
-            self.manager.current = "admin"
-        else:
-            self.show_popup("Error", "Failed to update file on GitHub.")
-
-    def switch_to_admin(self, instance):
-        self.manager.current = "admin"
-
-    def show_popup(self, title, message):
-        popup = Popup(title=title, size_hint=(0.8, 0.4))
-        popup.content = Label(text=message)
-        popup.open()
-class MainApp(App):
     def build(self):
-        self.screen_manager = ScreenManager()
-        self.access_token = load_access_token()
-        self.questions = []
-        self.selected_answers = {}
+        self.setup_database()
+        self.sm = ScreenManager()
+        
+        # Create main screen
+        main_screen = MainScreen(self)
+        self.sm.add_widget(main_screen)
+        
+        # Setup auto-update
+        Clock.schedule_interval(self.check_for_updates, 3600)
+        Clock.schedule_once(lambda dt: self.load_headers_list(), 0.5)
 
-        if self.access_token:
-            self.main_screen = MainScreen(name="main")
-            self.screen_manager.add_widget(self.main_screen)
+        return self.sm
 
-            self.admin_screen = AdminScreen(name="admin")
-            self.login_screen = LoginScreen(name="login")
-            self.add_question_screen = AddQuestionScreen(name="add_question")
-            self.edit_question_screen = EditQuestionScreen(name="edit_question")
-            self.screen_manager.add_widget(self.admin_screen)
-            self.screen_manager.add_widget(self.login_screen)
-            self.screen_manager.add_widget(self.add_question_screen)
-            self.screen_manager.add_widget(self.edit_question_screen)
+    @property
+    def main_screen(self):
+        if self.sm and 'main' in self.sm.screen_names:
+            return self.sm.get_screen('main')
+        return None
+
+    def setup_database(self):
+        self.conn = sqlite3.connect("unit4.db")
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS pdf_data (
+                id INTEGER PRIMARY KEY,
+                table_key TEXT,
+                header TEXT,
+                table_data TEXT,
+                last_updated TEXT
+            )
+            '''
+        )
+        self.conn.commit()
+        self.load_data_from_db()
+
+    def load_data_from_db(self):
+        if not self.cursor:
+            return
+            
+        self.cursor.execute("SELECT * FROM pdf_data")
+        rows = self.cursor.fetchall()
+        if rows:
+            self.last_updated = rows[0][4] if len(rows[0]) > 4 else "Never"
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Last updated: {self.last_updated}"
+
+    def load_headers_list(self):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.headers_layout or not self.cursor:
+            return
+            
+        main_screen.headers_layout.clear_widgets()
+        
+        self.cursor.execute("SELECT DISTINCT table_key, header FROM pdf_data")
+        headers = self.cursor.fetchall()
+
+        for table_key, header in headers:
+            btn = Button(
+                text=f"{table_key}: {header[:50]}{'...' if len(header) > 50 else ''}",
+                size_hint_y=None,
+                height=dp(40),
+                background_color=(0.8, 0.8, 0.9, 1),
+                background_normal='',
+                color=(0, 0, 0, 1),
+                font_size=dp(14)
+            )
+            btn.table_key = table_key
+            btn.header_text = header
+            btn.bind(on_press=self.on_header_click)
+            main_screen.headers_layout.add_widget(btn)
+
+    def on_header_click(self, instance):
+        if not self.cursor or not self.sm:
+            return
+            
+        self.cursor.execute(
+            "SELECT table_data FROM pdf_data WHERE table_key = ? LIMIT 1",
+            (instance.table_key,))
+        result = self.cursor.fetchone()
+        if result:
+            try:
+                table_data = json.loads(result[0])
+                # Check if screen already exists
+                if instance.table_key in self.sm.screen_names:
+                    self.sm.current = instance.table_key
+                else:
+                    table_screen = TableViewScreen(
+                        instance.table_key,
+                        instance.header_text,
+                        table_data
+                    )
+                    self.sm.add_widget(table_screen)
+                    self.sm.current = instance.table_key
+            except json.JSONDecodeError:
+                main_screen = self.main_screen
+                if main_screen and main_screen.results_container:
+                    error_label = Label(
+                        text="Error: Could not load table data",
+                        size_hint_y=None,
+                        height=dp(40),
+                        color=(0.8, 0.2, 0.2, 1)
+                    )
+                    main_screen.results_container.add_widget(error_label)
+
+    def show_headers_list(self, instance):
+        
+        self.clear_search(instance)
+        self.toggle_headers_list(instance)
+
+    def toggle_headers_list(self, instance):
+        main_screen = self.main_screen
+        if not main_screen:
+            return
+            
+        self.show_headers = not self.show_headers
+        
+        if self.show_headers:
+            # Show headers, hide results
+            anim = Animation(size_hint_y=1, duration=0.2)
+            anim &= Animation(opacity=1, duration=0.2)
+            anim.start(main_screen.headers_scroll)
+            
+            anim2 = Animation(size_hint_y=0, duration=0.2)
+            anim2 &= Animation(opacity=0, duration=0.2)
+            anim2.start(main_screen.main_scroll)
         else:
-            self.registration_screen = RegistrationScreen(name="registration")
-            self.screen_manager.add_widget(self.registration_screen)
+            # Show results, hide headers
+            anim = Animation(size_hint_y=0, duration=0.2)
+            anim &= Animation(opacity=0, duration=0.2)
+            anim.start(main_screen.headers_scroll)
+            
+            anim2 = Animation(size_hint_y=1, duration=0.2)
+            anim2 &= Animation(opacity=1, duration=0.2)
+            anim2.start(main_screen.main_scroll)
 
-        Window.bind(on_keyboard=self.on_keyboard)
-        Window.bind(on_keyboard_height=self.on_keyboard_height)
-        Window.keyboard_anim_args={'d':.2,'t':'in_out_expo'}
+    def clear_search(self, instance):
+        main_screen = self.main_screen
+        if not main_screen:
+            return
+            
+        if main_screen.search_input:
+            main_screen.search_input.text = ""
+        
+        # Show headers full screen again
+        self.show_headers = True
+        anim = Animation(size_hint_y=1, duration=0.2)
+        anim &= Animation(opacity=1, duration=0.2)
+        anim.start(main_screen.headers_scroll)
+        
+        anim2 = Animation(size_hint_y=0, duration=0.2)
+        anim2 &= Animation(opacity=0, duration=0.2)
+        anim2.start(main_screen.main_scroll)
+        
+        if main_screen.results_container:
+            main_screen.results_container.clear_widgets()
+        if main_screen.results_count_label:
+            main_screen.results_count_label.text = ""
+    def update_data(self, instance=None):
+        try:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = "Updating data..."
+            
+            # Show loading modal
+            self.loading_modal = ModalView(size_hint=(0.5, 0.2))
+            loading_box = BoxLayout(orientation='vertical', padding=dp(20))
+            loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
+            self.loading_modal.add_widget(loading_box)
+            self.loading_modal.open()
+            
+            Clock.schedule_once(self._perform_update, 0.1)
+        except Exception as e:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Update failed: {str(e)}"
 
+    def _perform_update(self, *args):
+        try:
+            if not self.conn or not self.cursor:
+                raise Exception("Database not initialized")
+                
+            response = requests.get(
+                self.github_data_url,
+               # proxies=self.proxies,
+                headers=self.headers,
+                timeout=10,
+                verify=False
+            )
+            response.raise_for_status()
+            data = response.json()
 
-        return self.screen_manager
+            with self.conn:
+                self.cursor.execute("DELETE FROM pdf_data")
+                for key, value in data.items():
+                    self.cursor.execute(
+                        '''
+                        INSERT INTO pdf_data (table_key, header, table_data, last_updated)
+                        VALUES (?, ?, ?, ?)
+                        ''',
+                        (
+                            key,
+                            value.get("header", ""),
+                            json.dumps(value.get("table", [])),
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        ),
+                    )
 
-    def refresh_all_screens(self):
-        for screen_name in self.screen_manager.screen_names:
-            screen = self.screen_manager.get_screen(screen_name)
-            if hasattr(screen, 'refresh_data'):
-                screen.refresh_data(None)
+            self.last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Last updated: {self.last_updated}"
+            
+            self.load_headers_list()
+            
+            # Close loading modal
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
 
-    def on_keyboard(self, window, key, *args):
+        except Exception as e:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                self.main_screen.status_label.text = f"Update failed: {str(e)}"
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
+
+    def do_search(self, instance):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.search_input or not main_screen.results_container:
+            return
+            
+        search_term = main_screen.search_input.text.strip().lower()
+        if not search_term:
+            return
+
+        # Hide headers and show results
+        self.show_headers = False
+        anim = Animation(size_hint_y=0, duration=0.2)
+        anim &= Animation(opacity=0, duration=0.2)
+        anim.start(main_screen.headers_scroll)
+        
+        anim2 = Animation(size_hint_y=1, duration=0.2)
+        anim2 &= Animation(opacity=1, duration=0.2)
+        anim2.start(main_screen.main_scroll)
+        
+        main_screen.results_container.clear_widgets()
+
+        # Show loading indicator
+        loading = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(40))
+        loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
+        main_screen.results_container.add_widget(loading)
+
+        self.search_term = search_term
+        self.current_search_index = 0
+        self.search_results_count = 0
+        if self.cursor:
+            self.cursor.execute("SELECT table_key, header, table_data FROM pdf_data")
+            self.all_data = self.cursor.fetchall()
+
+        Clock.schedule_once(partial(self._process_next_table), 0.1)
+
+    def _process_next_table(self, *args):
+        if not hasattr(self, 'all_data') or self.current_search_index >= len(self.all_data):
+            if self.search_results_count == 0:
+                main_screen = self.main_screen
+                if main_screen and main_screen.results_count_label:
+                    main_screen.results_count_label.text = "No results found"
+                if main_screen and main_screen.results_container:
+                    no_results = Label(
+                        text="No results found",
+                        size_hint_y=None,
+                        height=dp(40),
+                        color=(0.8, 0.2, 0.2, 1)
+                    )
+                    main_screen.results_container.add_widget(no_results)
+            return
+
+        table_key, header, table_data = self.all_data[self.current_search_index]
+        self.current_search_index += 1
+
+        header_matches = self.search_term in header.lower()
+        table_matches = []
+
+        try:
+            data = json.loads(table_data)
+            if isinstance(data, list):
+                table_matches = [
+                    row for row in data
+                    if any(self.search_term in str(value).lower() for value in row.values())
+                ]
+        except json.JSONDecodeError:
+            Clock.schedule_once(partial(self._process_next_table), 0)
+            return
+
+        if header_matches or table_matches:
+            self.search_results_count += len(table_matches) if table_matches else 1
+            self._add_table_result(table_key, header, table_matches if table_matches else data, header_matches)
+
+        Clock.schedule_once(partial(self._process_next_table), 0.01)
+
+    def _add_table_result(self, table_key, header, table_data, is_header_match):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.results_container or not main_screen.results_count_label:
+            return
+
+        section = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(10),
+            padding=[dp(10), dp(10), dp(10), dp(10)]
+        )
+
+        # Header with click to open in new screen
+        header_btn = Button(
+            text=f"[b]{table_key}:[/b] {header[:100]}{'...' if len(header) > 100 else ''}",
+            size_hint_y=None,
+            height=dp(45),
+            markup=True,
+            halign='left',
+            valign='middle',
+            background_color=(0.2, 0.6, 0.4, 1) if is_header_match else (0.3, 0.5, 0.7, 1),
+            background_normal='',
+            color=(1, 1, 1, 1),
+            font_size=dp(16)
+        )
+        header_btn.table_key = table_key
+        header_btn.header_text = header
+        header_btn.table_data = table_data
+        header_btn.bind(on_press=self.on_search_result_click)
+        section.add_widget(header_btn)
+
+        # Table content
+        if isinstance(table_data, list) and table_data:
+            try:
+                df = pd.DataFrame(table_data)
+                table_widget = self._create_table_widget(df)
+                section.add_widget(table_widget)
+                
+                # Calculate heights
+                header_height = header_btn.height
+                table_height = table_widget.height
+                spacing = section.spacing
+                padding = sum(section.padding[1::2])
+                
+                section.height = header_height + table_height + spacing + padding
+                
+            except Exception as e:
+                error_label = Label(
+                    text=f"Error displaying table: {str(e)}",
+                    size_hint_y=None,
+                    height=dp(40),
+                    color=(0.8, 0.2, 0.2, 1)
+                )
+                section.add_widget(error_label)
+                section.height = header_btn.height + dp(50)
+        else:
+            section.height = header_btn.height + dp(10)
+
+        main_screen.results_container.add_widget(section)
+        main_screen.results_count_label.text = f"Results: {self.search_results_count}"
+
+    def _create_table_widget(self, df):
+        
+        table_container = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(2),
+            padding=[dp(5), dp(5)]
+        )
+        
+        # Column headers
+        col_header = GridLayout(
+            cols=len(df.columns),
+            size_hint_y=None,
+            height=dp(40),
+            spacing=dp(5)
+        )
+        
+        with col_header.canvas.before:
+            Color(0.3, 0.5, 0.7, 1)
+            col_header.bg = Rectangle(pos=col_header.pos, size=col_header.size)
+
+        def update_col_header_bg(instance, value):
+            col_header.bg.pos = instance.pos
+            col_header.bg.size = instance.size
+
+        col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
+
+        for col in df.columns:
+            col_label = Label(
+                text=str(col),
+                color=(1, 1, 1, 1),
+                bold=True,
+                size_hint=(1, None),
+                height=dp(40),
+                halign='center',
+                valign='middle',
+                font_size=dp(14)
+            )
+            col_label.bind(size=col_label.setter('text_size'))
+            col_header.add_widget(col_label)
+
+        table_container.add_widget(col_header)
+
+        # Data rows
+        data_grid = GridLayout(
+            cols=len(df.columns),
+            size_hint_y=None,
+            spacing=dp(2),
+            padding=[dp(0)]
+        )
+        data_grid.bind(minimum_height=data_grid.setter('height'))
+
+        for i, (_, row) in enumerate(df.iterrows()):
+            row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+
+            for value in row:
+                cell = BoxLayout(
+                    size_hint_y=None,
+                    height=dp(40),
+                    padding=dp(5)
+                )
+
+                with cell.canvas.before:
+                    Color(*row_color)
+                    cell.bg = Rectangle(pos=cell.pos, size=cell.size)
+
+                def update_cell_bg(instance, value):
+                    instance.bg.pos = instance.pos
+                    instance.bg.size = instance.size
+
+                cell.bind(pos=update_cell_bg, size=update_cell_bg)
+
+                value_label = Label(
+                    text=str(value),
+                    color=(0, 0, 0, 1),
+                    halign='center',
+                    valign='middle',
+                    size_hint=(1, 1),
+                    font_size=dp(13)
+                )
+                value_label.bind(size=value_label.setter('text_size'))
+                cell.add_widget(value_label)
+                data_grid.add_widget(cell)
+
+        table_container.add_widget(data_grid)
+        
+        # Calculate total table height
+        table_container.height = dp(40) + (len(df) * dp(40)) + dp(10)
+        
+        return table_container
+
+    def on_search_result_click(self, instance):
+        if not self.sm:
+            return
+            
+        # Check if screen already exists
+        if instance.table_key in self.sm.screen_names:
+            self.sm.current = instance.table_key
+        else:
+            table_screen = TableViewScreen(
+                instance.table_key,
+                instance.header_text,
+                instance.table_data
+            )
+            self.sm.add_widget(table_screen)
+            self.sm.current = instance.table_key
+
+    def check_for_updates(self, dt):
+        try:
+            if not self.github_data_url:
+                return
+                
+            response = requests.head(
+                self.github_data_url,
+               # proxies=self.proxies,
+                headers=self.headers,
+                timeout=5,
+                verify=False
+            )
+            response.raise_for_status()
+            github_last_modified = response.headers.get("Last-Modified", "")
+            if github_last_modified and self.cursor:
+                self.cursor.execute("SELECT last_updated FROM pdf_data LIMIT 1")
+                local_last_updated = self.cursor.fetchone()
+                if local_last_updated and github_last_modified > local_last_updated[0]:
+                    self.update_data()
+        except requests.RequestException:
+            pass
+
+    def on_stop(self):
+        if self.conn:
+            self.conn.close()
+
+if __name__ == "__main__":
+    app = SearchApp()
+    app.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data1.json"
+    app.run()
+"""
+            )
+        
+        # Launch the PDF search app
+        try:
+            subprocess.Popen([sys.executable, file_name])
+        except Exception as e:
+            print(f"Error launching PDF Search: {e}")
+    
+    @staticmethod
+    def save_code_to_file(file_name: str, code_content: str):
+        """
+        Save the given code content to a specified `.py` file using UTF-8 encoding.
+
+        Args:
+            file_name (str): The name of the file to save the code to (must end with `.py`).
+            code_content (str): The code to be written into the file.
+
+        Returns:
+            None
+        """
+        if not file_name.endswith('.py'):
+            raise ValueError("The file name must end with '.py'")
+        try:
+            with open(file_name, "w", encoding="utf-8") as file:  # Specify UTF-8 encoding
+                file.write(code_content)
+            print(f"Code successfully saved to {file_name}")
+        except Exception as e:
+            print(f"An error occurred while saving to {file_name}: {e}")
+
+    def exit_app(self, instance):
+        App.get_running_app().stop()
+
+class LauncherApp(App):
+    def build(self):
+        sm = ScreenManager()
+        sm.add_widget(LauncherScreen())
+        return sm
+    def on_stop(self):
+        # Clean up any resources when launcher closes
         pass
 
-    def on_keyboard_height(self, window, height):
-        current_screen = self.screen_manager.current_screen
-        if height > 0:
-            if isinstance(current_screen, MainScreen) or isinstance(current_screen, RegistrationScreen):
-                current_screen.scroll_view.height = Window.height - height - dp(150)
-                current_screen.anchor_layout.y = height
-            else:
-                current_screen.scroll_view.height = Window.height - height
-                current_screen.anchor_layout.y = height
-        else:
-            current_screen.scroll_view.height = Window.height
-            current_screen.anchor_layout.y = 0
-
-if __name__ == '__main__':
-    main_app = MainApp()
-    main_app.run()
+if __name__ == "__main__":
+    LauncherApp().run()
