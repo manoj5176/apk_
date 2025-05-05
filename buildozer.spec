@@ -48,8 +48,7 @@ requirements =
     kivy==2.3.0,
     pillow==10.1.0,
     requests==2.31.0,
-    pandas==2.1.4,
-    numpy==1.26.2,
+ 
     sqlite3,
     datetime
 
