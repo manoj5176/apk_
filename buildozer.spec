@@ -10,7 +10,7 @@
 title = Ntpc-kaniha operation
 
 # (str) Package name
-package.name = myapp
+package.name = kaniha
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.test
