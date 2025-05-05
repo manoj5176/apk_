@@ -48,6 +48,10 @@ requirements =
     kivy==2.3.0,
     pillow==10.1.0,
     requests==2.31.0,
+    sqlalchemy,        # For better SQL handling (optional)
+    apsw>=3.9.2,       # Alternative SQLite implementation
+    openssl,           # For encrypted databases
+    libffi,  
  
     sqlite3,
     datetime
@@ -268,9 +272,9 @@ android.manifest_template = ./templates/AndroidManifest.xml
 #android.manifest.orientation = fullSensor
 
 # (list) Android additional libraries to copy into libs/armeabi
-#android.add_libs_armeabi = libs/android/*.so
-#android.add_libs_armeabi_v7a = libs/android-v7/*.so
-#android.add_libs_arm64_v8a = libs/android-v8/*.so
+android.add_libs_armeabi = libsqlite3.so
+android.add_libs_armeabi_v7a = libsqlite3.so
+android.add_libs_arm64_v8a = libsqlite3.so
 #android.add_libs_x86 = libs/android-x86/*.so
 #android.add_libs_mips = libs/android-mips/*.so
 
