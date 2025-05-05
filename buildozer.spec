@@ -48,9 +48,9 @@ requirements =
     kivy==2.3.0,
     pillow==10.1.0,
     requests==2.31.0,
-    sqlalchemy,        # For better SQL handling (optional)
-    apsw>=3.9.2,       # Alternative SQLite implementation
-    openssl,           # For encrypted databases
+    sqlalchemy,        
+    apsw>=3.9.2,      
+    openssl,           
     libffi,  
  
     sqlite3,
@@ -323,6 +323,9 @@ android.allow_backup = True
 # This property takes a map of key-value pairs. (via a string)
 # Usage example : android.manifest_placeholders = [myCustomUrl:\"org.kivy.customurl\"]
 # android.manifest_placeholders = [:]
+android.manifest_placeholders = 
+    android_allowBackup="false",
+    android_usesCleartextTraffic="true"
 android.softinput_mode = adjustResize
 #android.manifest_placeholders = [android_windowSoftInputMode="adjustResize|stateHidden"]
 # (bool) Skip byte compile for .py files
