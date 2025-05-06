@@ -17,17 +17,30 @@ import requests
 import json
 from datetime import datetime
 import os
-from kivy.utils import platform
+from threading import Thread
 from kivy.logger import Logger
 
 class TableViewScreen(Screen):
     def __init__(self, table_key, header, table_data, **kwargs):
-        super().__init__(**kwargs)
-        self.name = table_key
-        self.table_key = table_key
-        self.header = header
-        self.table_data = table_data
-        self.build_ui()
+        try:
+            super().__init__(**kwargs)
+            self.name = table_key
+            self.table_key = table_key
+            self.header = header
+            self.table_data = table_data if table_data else []
+            self.build_ui()
+        except Exception as e:
+            Logger.error(f"TableViewScreen init failed: {str(e)}")
+            self.show_error_screen(str(e))
+            
+    def show_error_screen(self, error_msg):
+        """Display error message if table fails to load"""
+        layout = BoxLayout(orientation='vertical')
+        layout.add_widget(Label(
+            text=f"Error loading table: {error_msg}",
+            color=(0.8, 0.2, 0.2, 1),
+            font_size=dp(16)))
+        self.add_widget(layout)
     
     def build_ui(self):
         main_layout = BoxLayout(orientation='vertical')
@@ -135,13 +148,17 @@ class TableViewScreen(Screen):
             if not table_data:
                 raise ValueError("No table data available")
                 
+            # Limit the number of rows displayed initially
+            max_rows = 50
+            display_data = table_data[:max_rows] if len(table_data) > max_rows else table_data
+                
             # Determine if it's a list of dicts or list of lists
-            if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
-                columns = list(table_data[0].keys())
-                rows = [list(row.values()) for row in table_data]
-            elif isinstance(table_data, list) and table_data and isinstance(table_data[0], list):
+            if isinstance(display_data, list) and display_data and isinstance(display_data[0], dict):
+                columns = list(display_data[0].keys())
+                rows = [list(row.values()) for row in display_data]
+            elif isinstance(display_data, list) and display_data and isinstance(display_data[0], list):
                 # If first row is header (handled in _create_column_headers)
-                rows = table_data
+                rows = display_data
             else:
                 raise ValueError("Unsupported table data format")
             
@@ -182,7 +199,21 @@ class TableViewScreen(Screen):
                     cell.add_widget(value_label)
                     data_grid.add_widget(cell)
 
-            data_grid.height = len(rows) * dp(40)
+            # Add message if data was truncated
+            if len(table_data) > max_rows:
+                truncated_msg = BoxLayout(size_hint_y=None, height=dp(30))
+                with truncated_msg.canvas.before:
+                    Color(0.9, 0.9, 0.5, 1)
+                    truncated_msg.bg = Rectangle(pos=truncated_msg.pos, size=truncated_msg.size)
+                truncated_msg.bind(pos=lambda i, p: setattr(truncated_msg.bg, 'pos', p),
+                                 size=lambda i, s: setattr(truncated_msg.bg, 'size', s))
+                truncated_msg.add_widget(Label(
+                    text=f"Showing first {max_rows} of {len(table_data)} rows",
+                    color=(0, 0, 0, 1),
+                    font_size=dp(12)))
+                data_grid.add_widget(truncated_msg)
+
+            data_grid.height = (len(rows) * dp(40)) + (dp(30) if len(table_data) > max_rows else 0)
             return data_grid
             
         except Exception as e:
@@ -368,14 +399,21 @@ class SearchApp(App):
             'Cache-Control': 'no-cache'}
 
     def load_data(self):
-        """Load data from JSON file"""
+        """Load data from JSON file with validation"""
         try:
             if os.path.exists(self.json_file):
                 with open(self.json_file, 'r') as f:
-                    self.data = json.load(f)
+                    data = json.load(f)
+                    
+                    # Validate data structure
+                    if not isinstance(data, dict):
+                        raise ValueError("Invalid JSON format - expected dictionary")
+                    if "tables" not in data:
+                        raise ValueError("Missing 'tables' key in JSON")
+                        
+                    self.data = data
                     self.last_updated = self.data.get("last_updated", "Never")
-            else:
-                self.data = {"tables": {}, "last_updated": "Never"}
+                    
         except Exception as e:
             Logger.error(f"Error loading JSON: {str(e)}")
             self.data = {"tables": {}, "last_updated": "Never"}
@@ -503,13 +541,15 @@ class SearchApp(App):
             self.loading_modal.add_widget(loading_box)
             self.loading_modal.open()
             
-            Clock.schedule_once(self._perform_update, 0.1)
+            # Run in background thread
+            Thread(target=self._perform_update, daemon=True).start()
+            
         except Exception as e:
-            main_screen = self.main_screen
-            if main_screen and main_screen.status_label:
-                main_screen.status_label.text = f"Update failed: {str(e)}"
+            Logger.error(f"Update initialization failed: {str(e)}")
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
 
-    def _perform_update(self, *args):
+    def _perform_update(self):
         try:
             response = requests.get(
                 self.github_data_url,
@@ -519,26 +559,38 @@ class SearchApp(App):
             response.raise_for_status()
             new_data = response.json()
 
+            # Validate the received data
+            if not isinstance(new_data, dict):
+                raise ValueError("Invalid data format from server")
+
             self.data["tables"] = new_data
             self.data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.last_updated = self.data["last_updated"]
             
             self.save_data()
             
-            if self.main_screen and self.main_screen.status_label:
-                self.main_screen.status_label.text = f"Last updated: {self.last_updated}"
-            
-            self.load_headers_list()
-            
-            if hasattr(self, 'loading_modal'):
-                self.loading_modal.dismiss()
+            # Update UI on main thread
+            def update_ui():
+                if self.main_screen and self.main_screen.status_label:
+                    self.main_screen.status_label.text = f"Last updated: {self.last_updated}"
+                
+                self.load_headers_list()
+                
+                if hasattr(self, 'loading_modal'):
+                    self.loading_modal.dismiss()
+
+            Clock.schedule_once(lambda dt: update_ui())
 
         except Exception as e:
             Logger.error(f"Update failed: {str(e)}")
-            if self.main_screen and self.main_screen.status_label:
-                self.main_screen.status_label.text = f"Update failed: {str(e)}"
-            if hasattr(self, 'loading_modal'):
-                self.loading_modal.dismiss()
+            
+            def show_error():
+                if self.main_screen and self.main_screen.status_label:
+                    self.main_screen.status_label.text = f"Update failed: {str(e)}"
+                if hasattr(self, 'loading_modal'):
+                    self.loading_modal.dismiss()
+
+            Clock.schedule_once(lambda dt: show_error())
 
     def do_search(self, instance):
         main_screen = self.main_screen
@@ -564,41 +616,50 @@ class SearchApp(App):
         loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
         main_screen.results_container.add_widget(loading)
 
+        # Run search in background
+        Thread(target=self._process_search, args=(search_term,), daemon=True).start()
+
+    def _process_search(self, search_term):
         self.search_term = search_term
         self.search_results_count = 0
         self.all_data = self.data.get("tables", {})
         self.current_search_index = 0
-
-        Clock.schedule_once(partial(self._process_next_table), 0.1)
+        
+        # Process first batch on main thread
+        Clock.schedule_once(partial(self._process_next_table))
 
     def _process_next_table(self, *args):
         if not hasattr(self, 'all_data'):
             if self.search_results_count == 0:
-                main_screen = self.main_screen
-                if main_screen and main_screen.results_count_label:
-                    main_screen.results_count_label.text = "No results found"
-                if main_screen and main_screen.results_container:
-                    no_results = Label(
-                        text="No results found",
-                        size_hint_y=None,
-                        height=dp(40),
-                        color=(0.8, 0.2, 0.2, 1))
-                    main_screen.results_container.add_widget(no_results)
+                def show_no_results():
+                    main_screen = self.main_screen
+                    if main_screen and main_screen.results_count_label:
+                        main_screen.results_count_label.text = "No results found"
+                    if main_screen and main_screen.results_container:
+                        no_results = Label(
+                            text="No results found",
+                            size_hint_y=None,
+                            height=dp(40),
+                            color=(0.8, 0.2, 0.2, 1))
+                        main_screen.results_container.add_widget(no_results)
+                Clock.schedule_once(lambda dt: show_no_results())
             return
 
         tables = list(self.all_data.items())
         if self.current_search_index >= len(tables):
             if self.search_results_count == 0:
-                main_screen = self.main_screen
-                if main_screen and main_screen.results_count_label:
-                    main_screen.results_count_label.text = "No results found"
-                if main_screen and main_screen.results_container:
-                    no_results = Label(
-                        text="No results found",
-                        size_hint_y=None,
-                        height=dp(40),
-                        color=(0.8, 0.2, 0.2, 1))
-                    main_screen.results_container.add_widget(no_results)
+                def show_no_results_final():
+                    main_screen = self.main_screen
+                    if main_screen and main_screen.results_count_label:
+                        main_screen.results_count_label.text = "No results found"
+                    if main_screen and main_screen.results_container:
+                        no_results = Label(
+                            text="No results found",
+                            size_hint_y=None,
+                            height=dp(40),
+                            color=(0.8, 0.2, 0.2, 1))
+                        main_screen.results_container.add_widget(no_results)
+                Clock.schedule_once(lambda dt: show_no_results_final())
             return
 
         table_key, table_data = tables[self.current_search_index]
@@ -629,9 +690,14 @@ class SearchApp(App):
 
         if header_matches or table_matches:
             self.search_results_count += len(table_matches) if table_matches else 1
-            self._add_table_result(table_key, header, table_matches if table_matches else table_content, header_matches)
-
-        Clock.schedule_once(partial(self._process_next_table), 0.01)
+            def add_result():
+                self._add_table_result(table_key, header, table_matches if table_matches else table_content, header_matches)
+                # Schedule next table processing
+                Clock.schedule_once(partial(self._process_next_table), 0.01)
+            Clock.schedule_once(lambda dt: add_result())
+        else:
+            # Process next table immediately
+            Clock.schedule_once(partial(self._process_next_table), 0.01)
 
     def _add_table_result(self, table_key, header, table_data, is_header_match):
         main_screen = self.main_screen
