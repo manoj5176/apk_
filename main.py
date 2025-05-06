@@ -346,25 +346,11 @@ class SearchApp(App):
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'}
 
-    def get_json_path(self, filename):
-        """Returns the correct path for JSON file on each platform"""
-        if platform == 'android':
-            from android.storage import app_storage_path
-            data_dir = app_storage_path()
-        elif platform == 'ios':
-            from os.path import expanduser
-            data_dir = expanduser('~/Documents')
-        else:  # Windows/Linux/macOS
-            data_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        return os.path.join(data_dir, filename)
-
     def load_data(self):
         """Load data from JSON file"""
-        json_path = self.get_json_path(self.json_file)
         try:
-            if os.path.exists(json_path):
-                with open(json_path, 'r') as f:
+            if os.path.exists(self.json_file):
+                with open(self.json_file, 'r') as f:
                     self.data = json.load(f)
                     self.last_updated = self.data.get("last_updated", "Never")
             else:
@@ -375,10 +361,8 @@ class SearchApp(App):
 
     def save_data(self):
         """Save data to JSON file"""
-        json_path = self.get_json_path(self.json_file)
         try:
-            os.makedirs(os.path.dirname(json_path), exist_ok=True)
-            with open(json_path, 'w') as f:
+            with open(self.json_file, 'w') as f:
                 json.dump(self.data, f)
         except Exception as e:
             Logger.error(f"Error saving JSON: {str(e)}")
