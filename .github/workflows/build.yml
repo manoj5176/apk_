@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Download Patch File
+        run: wget -O fix_numpy_includes.patch https://example.com/path-to-patch/fix_numpy_includes.patch
       - name: Test Patch Application
         run: patch --dry-run -p1 < fix_numpy_includes.patch
 
