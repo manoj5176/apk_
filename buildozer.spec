@@ -7,10 +7,10 @@
 [app]
 
 # (str) Title of your application
-title = Ntpc-kaniha operation
+title = NTPC -KANIHA
 
 # (str) Package name
-package.name = kaniha
+package.name = KANIHA
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.test
@@ -43,8 +43,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,requests,pillow,datetime
-
+requirements = python3,kivy,pillow,requests,uuid,datetime
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -111,7 +110,7 @@ android.permissions = android.permission.INTERNET, android.permission.WRITE_EXTE
 #android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
-#android.api = 33
+#android.api = 31
 
 # (int) Minimum API your APK / AAB will support.
 #android.minapi = 21
@@ -120,7 +119,7 @@ android.permissions = android.permission.INTERNET, android.permission.WRITE_EXTE
 #android.sdk = 20
 
 # (str) Android NDK version to use
-#android.ndk = 23
+#android.ndk = 23b
 
 # (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
 #android.ndk_api = 21
@@ -261,9 +260,9 @@ android.manifest_template = ./templates/AndroidManifest.xml
 #android.manifest.orientation = fullSensor
 
 # (list) Android additional libraries to copy into libs/armeabi
-#android.add_libs_armeabi = libsqlite3.so
-#android.add_libs_armeabi_v7a = libsqlite3.so
-#android.add_libs_arm64_v8a = libsqlite3.so
+#android.add_libs_armeabi = libs/android/*.so
+#android.add_libs_armeabi_v7a = libs/android-v7/*.so
+#android.add_libs_arm64_v8a = libs/android-v8/*.so
 #android.add_libs_x86 = libs/android-x86/*.so
 #android.add_libs_mips = libs/android-mips/*.so
 
@@ -312,9 +311,6 @@ android.allow_backup = True
 # This property takes a map of key-value pairs. (via a string)
 # Usage example : android.manifest_placeholders = [myCustomUrl:\"org.kivy.customurl\"]
 # android.manifest_placeholders = [:]
-android.manifest_placeholders = 
-    android_allowBackup="false",
-    android_usesCleartextTraffic="true"
 android.softinput_mode = adjustResize
 #android.manifest_placeholders = [android_windowSoftInputMode="adjustResize|stateHidden"]
 # (bool) Skip byte compile for .py files
