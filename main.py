@@ -16,7 +16,6 @@ from functools import partial
 import requests
 import json
 from datetime import datetime
-import pandas as pd
 import os
 from kivy.utils import platform
 from kivy.logger import Logger
@@ -50,8 +49,7 @@ class TableViewScreen(Screen):
             size_hint_x=0.2,
             background_color=(0.3, 0.5, 0.7, 1),
             color=(1, 1, 1, 1),
-            font_size=dp(16)
-        )
+            font_size=dp(16))
         back_btn.bind(on_press=self.go_back)
         header_box.add_widget(back_btn)
         
@@ -61,8 +59,7 @@ class TableViewScreen(Screen):
             halign='left',
             valign='middle',
             color=(1, 1, 1, 1),
-            font_size=dp(16)
-        )
+            font_size=dp(16))
         header_box.add_widget(title)
         main_layout.add_widget(header_box)
         
@@ -81,9 +78,21 @@ class TableViewScreen(Screen):
     
     def _create_column_headers(self, table_data):
         try:
-            df = pd.DataFrame(table_data)
+            if not table_data:
+                raise ValueError("No table data available")
+                
+            # Get column names from first row if it's a list of dicts
+            if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
+                columns = list(table_data[0].keys())
+            elif isinstance(table_data, list) and table_data and isinstance(table_data[0], list):
+                # Assume first row is header if it's a list of lists
+                columns = table_data[0]
+                table_data = table_data[1:]  # Remove header row from data
+            else:
+                raise ValueError("Unsupported table data format")
+            
             col_header = GridLayout(
-                cols=len(df.columns),
+                cols=len(columns),
                 size_hint_y=None,
                 height=dp(40),
                 spacing=dp(2))
@@ -98,7 +107,7 @@ class TableViewScreen(Screen):
 
             col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
 
-            for col in df.columns:
+            for col in columns:
                 header_label = Label(
                     text=str(col),
                     color=(1, 1, 1, 1),
@@ -123,15 +132,27 @@ class TableViewScreen(Screen):
     
     def _create_data_grid(self, table_data):
         try:
-            df = pd.DataFrame(table_data)
+            if not table_data:
+                raise ValueError("No table data available")
+                
+            # Determine if it's a list of dicts or list of lists
+            if isinstance(table_data, list) and table_data and isinstance(table_data[0], dict):
+                columns = list(table_data[0].keys())
+                rows = [list(row.values()) for row in table_data]
+            elif isinstance(table_data, list) and table_data and isinstance(table_data[0], list):
+                # If first row is header (handled in _create_column_headers)
+                rows = table_data
+            else:
+                raise ValueError("Unsupported table data format")
+            
             data_grid = GridLayout(
-                cols=len(df.columns),
+                cols=len(rows[0]) if rows else 1,
                 size_hint_y=None,
                 spacing=dp(2),
                 padding=[dp(0)])
             data_grid.bind(minimum_height=data_grid.setter('height'))
 
-            for i, (_, row) in enumerate(df.iterrows()):
+            for i, row in enumerate(rows):
                 row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
 
                 for value in row:
@@ -161,7 +182,7 @@ class TableViewScreen(Screen):
                     cell.add_widget(value_label)
                     data_grid.add_widget(cell)
 
-            data_grid.height = len(df) * dp(40)
+            data_grid.height = len(rows) * dp(40)
             return data_grid
             
         except Exception as e:
@@ -546,6 +567,7 @@ class SearchApp(App):
         self.search_term = search_term
         self.search_results_count = 0
         self.all_data = self.data.get("tables", {})
+        self.current_search_index = 0
 
         Clock.schedule_once(partial(self._process_next_table), 0.1)
 
@@ -590,10 +612,18 @@ class SearchApp(App):
 
         try:
             if isinstance(table_content, list):
-                table_matches = [
-                    row for row in table_content
-                    if any(self.search_term in str(value).lower() for value in row.values())
-                ]
+                if table_content and isinstance(table_content[0], dict):
+                    # List of dictionaries
+                    table_matches = [
+                        row for row in table_content
+                        if any(self.search_term in str(value).lower() for value in row.values())
+                    ]
+                elif table_content and isinstance(table_content[0], list):
+                    # List of lists
+                    table_matches = [
+                        row for row in table_content
+                        if any(self.search_term in str(value).lower() for value in row)
+                    ]
         except Exception as e:
             Logger.error(f"Error processing table: {str(e)}")
 
@@ -633,8 +663,7 @@ class SearchApp(App):
 
         if isinstance(table_data, list) and table_data:
             try:
-                df = pd.DataFrame(table_data)
-                table_widget = self._create_table_widget(df)
+                table_widget = self._create_table_widget(table_data)
                 section.add_widget(table_widget)
                 
                 header_height = header_btn.height
@@ -658,15 +687,26 @@ class SearchApp(App):
         main_screen.results_container.add_widget(section)
         main_screen.results_count_label.text = f"Results: {self.search_results_count}"
 
-    def _create_table_widget(self, df):
+    def _create_table_widget(self, table_data):
         table_container = BoxLayout(
             orientation='vertical',
             size_hint_y=None,
             spacing=dp(2),
             padding=[dp(5), dp(5)])
         
+        # Determine columns
+        if table_data and isinstance(table_data[0], dict):
+            columns = list(table_data[0].keys())
+            rows = [list(row.values()) for row in table_data]
+        elif table_data and isinstance(table_data[0], list):
+            # For list of lists, assume first row is header (handled in search)
+            columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
+            rows = table_data[1:] if len(table_data) > 1 else table_data
+        else:
+            raise ValueError("Unsupported table data format")
+        
         col_header = GridLayout(
-            cols=len(df.columns),
+            cols=len(columns),
             size_hint_y=None,
             height=dp(40),
             spacing=dp(5))
@@ -681,7 +721,7 @@ class SearchApp(App):
 
         col_header.bind(pos=update_col_header_bg, size=update_col_header_bg)
 
-        for col in df.columns:
+        for col in columns:
             col_label = Label(
                 text=str(col),
                 color=(1, 1, 1, 1),
@@ -697,13 +737,13 @@ class SearchApp(App):
         table_container.add_widget(col_header)
 
         data_grid = GridLayout(
-            cols=len(df.columns),
+            cols=len(columns),
             size_hint_y=None,
             spacing=dp(2),
             padding=[dp(0)])
         data_grid.bind(minimum_height=data_grid.setter('height'))
 
-        for i, (_, row) in enumerate(df.iterrows()):
+        for i, row in enumerate(rows):
             row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
 
             for value in row:
@@ -734,7 +774,7 @@ class SearchApp(App):
                 data_grid.add_widget(cell)
 
         table_container.add_widget(data_grid)
-        table_container.height = dp(40) + (len(df) * dp(40)) + dp(10)
+        table_container.height = dp(40) + (len(rows) * dp(40)) + dp(10)
         return table_container
 
     def on_search_result_click(self, instance):
