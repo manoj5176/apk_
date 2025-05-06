@@ -19,7 +19,7 @@ package.domain = org.test
 source.dir = .
 
 # (list) Source files to include (leave empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,json,env,json,db
+source.include_exts = py,png,jpg,kv,atlas,json,env
 #source.include_patterns = assets/*,images/*
 # (list) List of inclusions using pattern matching
 source.include_patterns = android/app/src/main/AndroidManifest.xml
@@ -43,7 +43,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,requests,sqlite3,pillow
+requirements = python3,kivy,requests,pillow,json
 
 
 # (str) Custom source folders for requirements
