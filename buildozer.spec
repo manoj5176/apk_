@@ -261,9 +261,9 @@ android.manifest_template = ./templates/AndroidManifest.xml
 #android.manifest.orientation = fullSensor
 
 # (list) Android additional libraries to copy into libs/armeabi
-android.add_libs_armeabi = libsqlite3.so
-android.add_libs_armeabi_v7a = libsqlite3.so
-android.add_libs_arm64_v8a = libsqlite3.so
+#android.add_libs_armeabi = libsqlite3.so
+#android.add_libs_armeabi_v7a = libsqlite3.so
+#android.add_libs_arm64_v8a = libsqlite3.so
 #android.add_libs_x86 = libs/android-x86/*.so
 #android.add_libs_mips = libs/android-mips/*.so
 
