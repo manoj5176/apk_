@@ -76,7 +76,7 @@ orientation = portrait
 # author = © Copyright Info
 
 # Kivy version to use
-osx.kivy_version = 2.3.0
+osx.kivy_version = 2.1.0
 
 #
 # Android specific
@@ -110,10 +110,10 @@ android.permissions = android.permission.INTERNET, android.permission.WRITE_EXTE
 #android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
-android.api = 28
+android.api = 33
 
 # (int) Minimum API your APK / AAB will support.
-android.minapi = 21
+android.minapi = 28
 
 # (int) Android SDK version to use
 #android.sdk = 24
@@ -122,7 +122,7 @@ android.minapi = 21
 #android.ndk = 19b
 
 # (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
-android.ndk_api = 21
+android.ndk_api = 23b
 
 # (str) Android NDK directory (if empty, it will be automatically downloaded.)
 #android.ndk_path =
