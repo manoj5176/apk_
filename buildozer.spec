@@ -43,7 +43,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.1.0,pillow,requests,uuid,datetime,urllib3,chardet,idna,android
+requirements = python3,kivy==2.3.0,pillow,requests,uuid,datetime,urllib3,chardet,idna,android,openssl
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -76,7 +76,7 @@ orientation = portrait
 # author = © Copyright Info
 
 # Kivy version to use
-osx.kivy_version = 2.1.0
+osx.kivy_version = 2.3.0
 
 #
 # Android specific
@@ -339,7 +339,7 @@ android.softinput_mode = adjustResize
 #p4a.fork = kivy
 
 # (str) python-for-android branch to use, defaults to master
-#p4a.branch = master
+p4a.branch = master
 
 # (str) python-for-android specific commit to use, defaults to HEAD, must be within p4a.branch
 #p4a.commit = HEAD
