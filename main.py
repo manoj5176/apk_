@@ -19,265 +19,7 @@ import json
 from datetime import datetime
 import os
 from kivy.logger import Logger
-
-# Custom Widgets
-class PerfectFitLabel(Label):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.font_size = dp(14)
-        self.size_hint = (1, None)
-        self.valign = 'middle'
-        self.halign = 'center'
-        self.color = (0, 0, 0, 1)  # Black text
-        self.padding = (dp(5), dp(5))
-        self.bind(
-            width=self.update_text_size,
-            texture_size=self.update_height)
-    
-    def update_text_size(self, instance, width):
-        text_length = len(self.text)
-        if width < dp(100) and text_length > 20:
-            self.font_size = dp(10)
-        elif width < dp(150) and text_length > 30:
-            self.font_size = dp(12)
-        else:
-            self.font_size = dp(14)
-        self.text_size = (width - self.padding[0]*2, None)
-    
-    def update_height(self, instance, size):
-        self.height = max(dp(40), size[1] + self.padding[1]*2)
-
-class TableCell(BoxLayout):
-    def __init__(self, text='', **kwargs):
-        super().__init__(**kwargs)
-        self.size_hint = (1, None)
-        self.height = dp(40)
-        self.padding = (dp(2), dp(2))
-        self.orientation = 'vertical'
-        
-        with self.canvas.before:
-            self.bg_color = Color(0.95, 0.95, 0.95, 1)
-            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
-        
-        self.bind(pos=self.update_bg, size=self.update_bg)
-        
-        self.label = PerfectFitLabel(text=text)
-        self.add_widget(self.label)
-    
-    def update_bg(self, *args):
-        self.bg_rect.pos = self.pos
-        self.bg_rect.size = self.size
-    
-    def set_text(self, text):
-        self.label.text = text
-    
-    def set_color(self, r, g, b, a):
-        self.bg_color.rgba = (r, g, b, a)
-
-class FixedHeaderScrollView(ScrollView):
-    def __init__(self, header=None, table_name=None, **kwargs):
-        super().__init__(**kwargs)
-        self.header = header
-        self.table_name = table_name
-        self.bind(scroll_y=self._update_header_position)
-    
-    def _update_header_position(self, instance, value):
-        if self.header:
-            self.header.y = self.top + (self.scroll_y * (self.height - self.header.height))
-        if self.table_name:
-            self.table_name.y = self.top + (self.scroll_y * (self.height - self.table_name.height)) + self.header.height
-
-class DataTable(GridLayout):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.cols = 1
-        self.size_hint = (1, None)
-        self.bind(minimum_height=self.setter('height'))
-        self.spacing = dp(1)
-        self.padding = dp(1)
-    
-    def build_table(self, columns, data_rows, table_key=None):
-        self.clear_widgets()
-        
-        # Create table name label (fixed while scrolling)
-        if table_key:
-            self.table_name = Label(
-                text=f"[b]{table_key}[/b]",
-                markup=True,
-                size_hint=(1, None),
-                height=dp(40),
-                color=(0.2, 0.4, 0.6, 1),
-                bold=True)
-            self.add_widget(self.table_name)
-        
-        # Create header row (fixed while scrolling)
-        self.header = GridLayout(cols=len(columns), size_hint=(1, None), height=dp(40))
-        with self.header.canvas.before:
-            Color(0.3, 0.5, 0.7, 1)
-            self.header.bg = Rectangle(pos=self.header.pos, size=self.header.size)
-        self.header.bind(
-            pos=lambda i, v: setattr(self.header.bg, 'pos', i.pos),
-            size=lambda i, v: setattr(self.header.bg, 'size', i.size))
-        
-        for col in columns:
-            header_cell = PerfectFitLabel(text=str(col), bold=True, color=(1, 1, 1, 1))
-            self.header.add_widget(header_cell)
-        
-        self.add_widget(self.header)
-        
-        # Create data rows
-        for i, row in enumerate(data_rows):
-            row_layout = GridLayout(cols=len(columns), size_hint=(1, None))
-            row_layout.bind(minimum_height=row_layout.setter('height'))
-            
-            for j, value in enumerate(row):
-                cell = TableCell(text=str(value))
-                cell.set_color(0.95, 0.95, 0.95, 1) if i % 2 == 0 else cell.set_color(0.85, 0.85, 0.85, 1)
-                row_layout.add_widget(cell)
-            
-            self.add_widget(row_layout)
-
-class TableViewScreen(Screen):
-    def __init__(self, table_key, header, table_data, **kwargs):
-        super().__init__(**kwargs)
-        self.name = table_key
-        self.table_key = table_key
-        self.header_text = header
-        self.table_data = table_data
-        self.build_ui()
-    
-    def build_ui(self):
-        main_layout = BoxLayout(orientation='vertical', spacing=0)
-        
-        # Main screen header with back button
-        screen_header = BoxLayout(
-            size_hint_y=None, 
-            height=dp(50),
-            padding=[10, 5],
-            spacing=10)
-        
-        with screen_header.canvas.before:
-            Color(0.2, 0.4, 0.6, 1)
-            screen_header.bg = Rectangle(pos=screen_header.pos, size=screen_header.size)
-        
-        screen_header.bind(
-            pos=lambda i, v: setattr(screen_header.bg, 'pos', i.pos),
-            size=lambda i, v: setattr(screen_header.bg, 'size', i.size))
-        
-        back_btn = Button(
-            text="← Back",
-            size_hint_x=None,
-            width=dp(80),
-            background_normal='',
-            background_color=(0.3, 0.5, 0.7, 1),
-            color=(1, 1, 1, 1))
-        back_btn.bind(on_press=self.go_back)
-        screen_header.add_widget(back_btn)
-        
-        title = Label(
-            text=self.header_text,
-            halign='left',
-            valign='middle',
-            color=(1, 1, 1, 1),
-            size_hint_x=1)
-        title.bind(width=lambda *x: setattr(title, 'text_size', (title.width, None)))
-        screen_header.add_widget(title)
-        
-        main_layout.add_widget(screen_header)
-        
-        # Scrollable content area (now includes table name)
-        scroll_view = ScrollView(bar_width=dp(8))
-        content_layout = GridLayout(
-            cols=1,
-            size_hint_y=None,
-            spacing=5,
-            padding=[0, 5, 0, 5])
-        content_layout.bind(minimum_height=content_layout.setter('height'))
-        
-        # Add table name label (now scrolls with content)
-        table_name_label = Label(
-            text=f"[b]{self.table_key}[/b]",
-            markup=True,
-            size_hint_y=None,
-            height=dp(40),
-            color=(0.2, 0.4, 0.6, 1),
-            bold=True,
-            halign='left')
-        content_layout.add_widget(table_name_label)
-        
-        # Determine columns
-        if isinstance(self.table_data[0], dict):
-            columns = list(self.table_data[0].keys())
-            rows = [list(row.values()) for row in self.table_data]
-        else:
-            columns = self.table_data[0] if len(self.table_data) > 1 else [f"Col {i+1}" for i in range(len(self.table_data[0]))]
-            rows = self.table_data[1:] if len(self.table_data) > 1 else self.table_data
-        
-        # Add column headers
-        header_row = GridLayout(
-            cols=len(columns),
-            size_hint_y=None,
-            height=dp(40),
-            spacing=2)
-        
-        with header_row.canvas.before:
-            Color(0.3, 0.5, 0.7, 1)
-            header_row.bg = Rectangle(pos=header_row.pos, size=header_row.size)
-        
-        header_row.bind(
-            pos=lambda i, v: setattr(header_row.bg, 'pos', i.pos),
-            size=lambda i, v: setattr(header_row.bg, 'size', i.size))
-        
-        for col in columns:
-            header_cell = Label(
-                text=str(col),
-                color=(1, 1, 1, 1),
-                bold=True,
-                halign='center',
-                valign='middle')
-            header_cell.bind(size=header_cell.setter('text_size'))
-            header_row.add_widget(header_cell)
-        
-        content_layout.add_widget(header_row)
-        
-        # Add data rows
-        for i, row in enumerate(rows):
-            row_layout = GridLayout(
-                cols=len(columns),
-                size_hint_y=None,
-                height=dp(40),
-                spacing=2)
-            
-            row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
-            
-            with row_layout.canvas.before:
-                Color(*row_color)
-                row_layout.bg = Rectangle(pos=row_layout.pos, size=row_layout.size)
-            
-            row_layout.bind(
-                pos=lambda i, v: setattr(i.bg, 'pos', i.pos),
-                size=lambda i, v: setattr(i.bg, 'size', i.size))
-            
-            for value in row:
-                cell = Label(
-                    text=str(value),
-                    color=(0, 0, 0, 1),
-                    halign='center',
-                    valign='middle')
-                cell.bind(size=cell.setter('text_size'))
-                row_layout.add_widget(cell)
-            
-            content_layout.add_widget(row_layout)
-        
-        scroll_view.add_widget(content_layout)
-        main_layout.add_widget(scroll_view)
-        
-        self.add_widget(main_layout)
-    
-    def go_back(self, instance):
-        if self.manager:
-            self.manager.current = 'main'
-
+from kivy.core.window import Window
 
 class MainScreen(Screen):
     def __init__(self, app, **kwargs):
@@ -287,10 +29,18 @@ class MainScreen(Screen):
         self.build_ui()
     
     def build_ui(self):
-        layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
+        main_layout = BoxLayout(
+            orientation="vertical",
+            spacing=dp(5),
+            padding=[dp(10), dp(5), dp(10), dp(5)])
         
         # Header
-        header = BoxLayout(size_hint_y=None, height=dp(50), padding=dp(5), spacing=dp(5))
+        header = BoxLayout(
+            size_hint_y=None,
+            height=dp(50),
+            padding=dp(5),
+            spacing=dp(5))
+        
         with header.canvas.before:
             Color(0.2, 0.4, 0.6, 1)
             self.header_bg = Rectangle(pos=header.pos, size=header.size)
@@ -301,91 +51,95 @@ class MainScreen(Screen):
         
         self.title_label = Label(
             text="PDF Data Search",
-            font_size=dp(20),
+            font_size=dp(18),
             color=(1, 1, 1, 1),
-            size_hint_x=0.6)
-        self.title_label.bind(width=lambda *x: setattr(self.title_label, 'text_size', (self.title_label.width, None)))
+            size_hint_x=0.6,
+            halign='left',
+            valign='middle',
+            text_size=(Window.width * 0.55, None),
+            shorten=True,
+            shorten_from='right')
         
         self.status_label = Label(
             text=f"Last updated: {self.app.last_updated}",
             color=(1, 1, 1, 1),
             size_hint_x=0.4,
             halign='right',
-            font_size=dp(12))
-        self.status_label.bind(width=lambda *x: setattr(self.status_label, 'text_size', (self.status_label.width, None)))
+            valign='middle',
+            font_size=dp(10),
+            text_size=(Window.width * 0.35, None),
+            shorten=True)
         
         header.add_widget(self.title_label)
         header.add_widget(self.status_label)
-        layout.add_widget(header)
+        main_layout.add_widget(header)
 
         # Search Area
         search_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(5))
         self.search_input = TextInput(
             hint_text="Search...",
             multiline=False,
-            padding=dp(15),
-            font_size=dp(16))
+            padding=[dp(15), dp(10)],
+            font_size=dp(14),
+            size_hint_x=0.7)
         self.search_input.bind(on_text_validate=partial(self.app.do_search, None))
-        search_box.add_widget(self.search_input)
-
+        
         search_btn = Button(
-            text="🔍",
+            text="search",
             size_hint_x=0.15,
+            font_size=dp(14),
             background_normal='',
             background_color=(0.3, 0.5, 0.7, 1))
         search_btn.bind(on_press=self.app.do_search)
-        search_box.add_widget(search_btn)
-
+        
         clear_btn = Button(
-            text="✕",
+            text="clear",
             size_hint_x=0.15,
+            font_size=dp(14),
             background_normal='',
             background_color=(0.7, 0.3, 0.3, 1))
         clear_btn.bind(on_press=self.app.clear_search)
+        
+        search_box.add_widget(self.search_input)
+        search_box.add_widget(search_btn)
         search_box.add_widget(clear_btn)
-
-        layout.add_widget(search_box)
+        main_layout.add_widget(search_box)
 
         # Action buttons
-        action_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(5))
+        action_box = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(5))
         
-        update_btn = Button(
-            text="Update",
-            size_hint_x=0.33,
-            background_normal='',
-            background_color=(0.3, 0.5, 0.7, 1))
-        update_btn.bind(on_press=self.app.update_data)
-        action_box.add_widget(update_btn)
+        buttons = [
+            ("Update", self.app.update_data),
+            ("Headers", self.app.show_headers_list),
+            ("Back", self.back_to_launcher)
+        ]
+        
+        for text, callback in buttons:
+            btn = Button(
+                text=text,
+                font_size=dp(12),
+                background_normal='',
+                background_color=(0.3, 0.5, 0.7, 1))
+            btn.bind(on_press=callback)
+            action_box.add_widget(btn)
+        
+        main_layout.add_widget(action_box)
 
-        headers_btn = Button(
-            text="Headers",
-            size_hint_x=0.33,
-            background_normal='',
-            background_color=(0.3, 0.5, 0.7, 1))
-        headers_btn.bind(on_press=self.app.show_headers_list)
-        action_box.add_widget(headers_btn)
-
-        back_btn = Button(
-            text="Back",
-            size_hint_x=0.33,
-            background_normal='',
-            background_color=(0.3, 0.5, 0.7, 1))
-        back_btn.bind(on_press=self.back_to_launcher)
-        action_box.add_widget(back_btn)
-
-        layout.add_widget(action_box)
-
-        # Results count label
         self.results_count_label = Label(
             text="",
             size_hint_y=None,
-            height=dp(30),
+            height=dp(25),
             color=(0.3, 0.5, 0.7, 1),
-            bold=True)
-        layout.add_widget(self.results_count_label)
+            bold=True,
+            font_size=dp(12))
+        main_layout.add_widget(self.results_count_label)
 
-        # Headers List Area
-        self.headers_scroll = ScrollView(size_hint=(1, 1))
+        # Content Area with proper Screen management
+        content_area = BoxLayout(orientation='vertical', size_hint=(1, 1))
+        
+        # Create headers screen
+        self.headers_screen = Screen(name='headers')
+        self.headers_scroll = ScrollView()
         self.headers_layout = GridLayout(
             cols=1,
             spacing=dp(5),
@@ -393,20 +147,42 @@ class MainScreen(Screen):
             padding=dp(5))
         self.headers_layout.bind(minimum_height=self.headers_layout.setter('height'))
         self.headers_scroll.add_widget(self.headers_layout)
-        layout.add_widget(self.headers_scroll)
+        self.headers_screen.add_widget(self.headers_scroll)
 
-        # Main Results Area
-        self.main_scroll = ScrollView(size_hint=(1, 0), opacity=0)
+        # Create main results screen
+        self.results_screen = Screen(name='results')
         self.results_container = BoxLayout(
             orientation='vertical',
             size_hint_y=None,
-            spacing=dp(10),
+            spacing=dp(5),
             padding=dp(5))
         self.results_container.bind(minimum_height=self.results_container.setter('height'))
-        self.main_scroll.add_widget(self.results_container)
-        layout.add_widget(self.main_scroll)
 
-        self.add_widget(layout)
+        # Create a single ScrollView that wraps everything
+        self.main_scroll = ScrollView(size_hint=(1, 1))
+        self.main_scroll.add_widget(self.results_container)
+        self.results_screen.add_widget(self.main_scroll)
+
+        # Create screen manager
+        self.content_switcher = ScreenManager()
+        self.content_switcher.add_widget(self.headers_screen)
+        self.content_switcher.add_widget(self.results_screen)
+        content_area.add_widget(self.content_switcher)
+        
+        # Start with headers view visible
+        self.content_switcher.current = 'headers'
+        
+        main_layout.add_widget(content_area)
+        self.add_widget(main_layout)
+        
+        Window.bind(on_resize=self._update_layout)
+        self._update_layout()
+    
+    def _update_layout(self, *args):
+        self.title_label.text_size = (Window.width * 0.55, None)
+        self.status_label.text_size = (Window.width * 0.35, None)
+        self.title_label.texture_update()
+        self.status_label.texture_update()
     
     def back_to_launcher(self, instance):
         App.get_running_app().stop()
@@ -502,31 +278,9 @@ class SearchApp(App):
 
     def show_headers_list(self, instance):
         self.clear_search(instance)
-        self.toggle_headers_list(instance)
-
-    def toggle_headers_list(self, instance):
         main_screen = self.main_screen
-        if not main_screen:
-            return
-            
-        self.show_headers = not self.show_headers
-        
-        if self.show_headers:
-            anim = Animation(size_hint_y=1, duration=0.2)
-            anim &= Animation(opacity=1, duration=0.2)
-            anim.start(main_screen.headers_scroll)
-            
-            anim2 = Animation(size_hint_y=0, duration=0.2)
-            anim2 &= Animation(opacity=0, duration=0.2)
-            anim2.start(main_screen.main_scroll)
-        else:
-            anim = Animation(size_hint_y=0, duration=0.2)
-            anim &= Animation(opacity=0, duration=0.2)
-            anim.start(main_screen.headers_scroll)
-            
-            anim2 = Animation(size_hint_y=1, duration=0.2)
-            anim2 &= Animation(opacity=1, duration=0.2)
-            anim2.start(main_screen.main_scroll)
+        if main_screen:
+            main_screen.content_switcher.current = 'headers'
 
     def clear_search(self, instance):
         main_screen = self.main_screen
@@ -536,14 +290,7 @@ class SearchApp(App):
         if main_screen.search_input:
             main_screen.search_input.text = ""
         
-        self.show_headers = True
-        anim = Animation(size_hint_y=1, duration=0.2)
-        anim &= Animation(opacity=1, duration=0.2)
-        anim.start(main_screen.headers_scroll)
-        
-        anim2 = Animation(size_hint_y=0, duration=0.2)
-        anim2 &= Animation(opacity=0, duration=0.2)
-        anim2.start(main_screen.main_scroll)
+        main_screen.content_switcher.current = 'headers'
         
         if main_screen.results_container:
             main_screen.results_container.clear_widgets()
@@ -608,29 +355,26 @@ class SearchApp(App):
         if not search_term:
             return
 
-        self.show_headers = False
-        anim = Animation(size_hint_y=0, duration=0.2)
-        anim &= Animation(opacity=0, duration=0.2)
-        anim.start(main_screen.headers_scroll)
-        
-        anim2 = Animation(size_hint_y=1, duration=0.2)
-        anim2 &= Animation(opacity=1, duration=0.2)
-        anim2.start(main_screen.main_scroll)
-        
+        # Clear previous results
         main_screen.results_container.clear_widgets()
-
+        
+        # Show loading indicator
         loading = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(40))
         loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
         main_screen.results_container.add_widget(loading)
+        
+        # Switch to results view
+        main_screen.content_switcher.current = 'results'
 
+        # Perform search
         self.search_term = search_term
         self.search_results_count = 0
         self.all_data = self.data.get("tables", {})
         self.current_search_index = 0
 
-        Clock.schedule_once(partial(self._process_next_table), 0.1)
+        Clock.schedule_once(partial(self.process_next_table), 0.1)
 
-    def _process_next_table(self, *args):
+    def process_next_table(self, *args):
         if not hasattr(self, 'all_data'):
             if self.search_results_count == 0:
                 main_screen = self.main_screen
@@ -686,89 +430,184 @@ class SearchApp(App):
 
         if header_matches or table_matches:
             self.search_results_count += len(table_matches) if table_matches else 1
-            self._add_table_result(table_key, header, table_matches if table_matches else table_content, header_matches)
+            self.add_table_result(table_key, header, table_matches if table_matches else table_content, header_matches)
 
-        Clock.schedule_once(partial(self._process_next_table), 0.01)
+        Clock.schedule_once(partial(self.process_next_table), 0.01)
 
-    def _add_table_result(self, table_key, header, table_data, is_header_match):
-            main_screen = self.main_screen
-            if not main_screen or not main_screen.results_container or not main_screen.results_count_label:
-                return
+    def add_table_result(self, table_key, header, table_data, is_header_match):
+        main_screen = self.main_screen
+        if not main_screen or not main_screen.results_container or not main_screen.results_count_label:
+            return
 
-            section = BoxLayout(
-                orientation='vertical',
-                size_hint_y=None,
-                spacing=dp(5),
-                padding=dp(5))
+        # Create result item (without its own ScrollView)
+        result_item = BoxLayout(
+            orientation='vertical',
+            size_hint_y=None,
+            spacing=dp(5),
+            padding=dp(5))
 
-            header_btn = Button(
-                text=f"[b]{table_key}:[/b] {header[:50]}{'...' if len(header) > 50 else ''}",
-                size_hint_y=None,
-                height=dp(45),
-                markup=True,
-                halign='left',
-                background_normal='',
-                background_color=(0.2, 0.6, 0.4, 1) if is_header_match else (0.3, 0.5, 0.7, 1),
-                color=(1, 1, 1, 1))
-            header_btn.table_key = table_key
-            header_btn.header_text = header
-            header_btn.table_data = table_data
-            header_btn.bind(on_press=self.on_search_result_click)
-            section.add_widget(header_btn)
+        # Add header button with attributes
+        header_btn = Button(
+            text=f"[b]{table_key}:[/b] {header[:50]}{'...' if len(header) > 50 else ''}",
+            size_hint_y=None,
+            height=dp(45),
+            markup=True,
+            halign='left',
+            background_normal='',
+            background_color=(0.2, 0.6, 0.4, 1) if is_header_match else (0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1))
+        header_btn.table_key = table_key
+        header_btn.header_text = header
+        header_btn.table_data = table_data
+        header_btn.bind(on_press=self.on_search_result_click)
+        
+        result_item.add_widget(header_btn)
 
-            if isinstance(table_data, list) and table_data:
-                try:
-                    scroll_view = FixedHeaderScrollView(bar_width=dp(8))
-                    data_table = DataTable()
-                    
-                    if isinstance(table_data[0], dict):
-                        columns = list(table_data[0].keys())
-                        rows = [list(row.values()) for row in table_data]
-                    else:
-                        columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
-                        rows = table_data[1:] if len(table_data) > 1 else table_data
-                    
-                    data_table.build_table(columns, rows)
-                    scroll_view.header = data_table.header
-                    
-                    # Add scroll view with data
-                    scroll_view.add_widget(data_table)
-                    section.add_widget(scroll_view)
-                    
-                    # Calculate height (limit to 300dp max)
-                    row_count = len(rows)
-                    table_height = min(300, dp(40) + (row_count * dp(40)))
-                    scroll_view.height = table_height
-                    
-                    section.height = header_btn.height + table_height + dp(10)
-                except Exception as e:
-                    error_label = Label(
-                        text=f"Error displaying table: {str(e)}",
+        if isinstance(table_data, list) and table_data:
+            try:
+                # Create the data table container (no ScrollView here)
+                data_table = GridLayout(
+                    cols=1,
+                    size_hint_y=None,
+                    spacing=dp(1),
+                    padding=dp(1))
+                data_table.bind(minimum_height=data_table.setter('height'))
+                
+                # Determine columns and rows (your existing code)
+                if isinstance(table_data[0], dict):
+                    columns = list(table_data[0].keys())
+                    rows = table_data
+                else:
+                    columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
+                    rows = table_data[1:] if len(table_data) > 1 else table_data
+                
+                # Add header row (your existing code)
+                header_row = GridLayout(
+                    cols=len(columns),
+                    size_hint_y=None,
+                    height=dp(40),
+                    spacing=dp(1))
+                
+                with header_row.canvas.before:
+                    Color(0.3, 0.5, 0.7, 1)
+                    header_row.bg = Rectangle(pos=header_row.pos, size=header_row.size)
+                
+                header_row.bind(
+                    pos=self.update_header_bg,
+                    size=self.update_header_bg)
+                
+                for col in columns:
+                    header_cell = Label(
+                        text=str(col),
+                        color=(1, 1, 1, 1),
+                        bold=True,
+                        halign='center',
+                        valign='middle',
+                        font_size=dp(14))
+                    header_cell.bind(size=header_cell.setter('text_size'))
+                    header_row.add_widget(header_cell)
+                
+                data_table.add_widget(header_row)
+                
+                # Add data rows (your existing code)
+                for i, row in enumerate(rows):
+                    row_layout = GridLayout(
+                        cols=len(columns),
                         size_hint_y=None,
                         height=dp(40),
-                        color=(0.8, 0.2, 0.2, 1))
-                    section.add_widget(error_label)
-                    section.height = header_btn.height + dp(50)
-            else:
-                section.height = header_btn.height + dp(10)
+                        spacing=dp(1))
+                    
+                    row_layout.row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+                    
+                    with row_layout.canvas.before:
+                        Color(*row_layout.row_color)
+                        row_layout.bg = Rectangle(pos=row_layout.pos, size=row_layout.size)
+                    
+                    row_layout.bind(
+                        pos=self.update_row_bg,
+                        size=self.update_row_bg)
+                    
+                    if isinstance(row, dict):
+                        for col in columns:
+                            value = row.get(col, "")
+                            cell = Label(
+                                text=str(value) if value is not None else "",
+                                color=(0, 0, 0, 1),
+                                halign='center',
+                                valign='middle',
+                                font_size=dp(14))
+                            cell.bind(size=cell.setter('text_size'))
+                            row_layout.add_widget(cell)
+                    else:
+                        for value in row:
+                            cell = Label(
+                                text=str(value) if value is not None else "",
+                                color=(0, 0, 0, 1),
+                                halign='center',
+                                valign='middle',
+                                font_size=dp(14))
+                            cell.bind(size=cell.setter('text_size'))
+                            row_layout.add_widget(cell)
+                    
+                    data_table.add_widget(row_layout)
+                
+                # Calculate height for this table only
+                row_count = len(rows)
+                table_height = dp(40) + (row_count * dp(40))
+                data_table.height = table_height
+                
+                # Add table directly to result item (no ScrollView)
+                result_item.add_widget(data_table)
+                result_item.height = header_btn.height + data_table.height + dp(10)
+                
+            except Exception as e:
+                Logger.error(f"Error displaying table: {str(e)}")
+                error_label = Label(
+                    text=f"Error displaying table data",
+                    size_hint_y=None,
+                    height=dp(40),
+                    color=(0.8, 0.2, 0.2, 1))
+                result_item.add_widget(error_label)
+                result_item.height = header_btn.height + dp(50)
+        else:
+            result_item.height = header_btn.height + dp(10)
 
-            main_screen.results_container.add_widget(section)
-            main_screen.results_count_label.text = f"Results: {self.search_results_count}"
+        # Add result to container
+        main_screen.results_container.add_widget(result_item)
+        main_screen.results_count_label.text = f"Results: {self.search_results_count}"
 
+    def update_header_bg(self, instance, value):
+        instance.bg.pos = instance.pos
+        instance.bg.size = instance.size
+
+    def update_row_bg(self, instance, value):
+        with instance.canvas.before:
+            Color(*instance.row_color)
+            instance.bg.pos = instance.pos
+            instance.bg.size = instance.size
 
     def on_search_result_click(self, instance):
         if not self.sm:
             return
             
-        if instance.table_key in self.sm.screen_names:
-            self.sm.current = instance.table_key
+        # Safely get the attributes with defaults
+        table_key = getattr(instance, 'table_key', None)
+        header_text = getattr(instance, 'header_text', "")
+        table_data = getattr(instance, 'table_data', [])
+        
+        if not table_key:
+            Logger.error("Clicked button has no table_key")
+            return
+            
+        if table_key in self.sm.screen_names:
+            self.sm.current = table_key
         else:
             table_screen = TableViewScreen(
-                instance.table_key,
-                instance.header_text,
-                instance.table_data)
+                table_key,
+                header_text,
+                table_data)
             self.sm.add_widget(table_screen)
-            self.sm.current = instance.table_key
+            self.sm.current = table_key
 
     def check_for_updates(self, dt):
         try:
@@ -789,6 +628,147 @@ class SearchApp(App):
 
     def on_stop(self):
         self.save_data()
+
+class TableViewScreen(Screen):
+    def __init__(self, table_key, header, table_data, **kwargs):
+        super().__init__(**kwargs)
+        self.name = table_key
+        self.table_key = table_key
+        self.header_text = header
+        self.table_data = table_data
+        self.build_ui()
+    
+    def build_ui(self):
+        main_layout = BoxLayout(orientation='vertical', spacing=0)
+        
+        # Screen header with back button
+        screen_header = BoxLayout(
+            size_hint_y=None, 
+            height=dp(50),
+            padding=[10, 5],
+            spacing=10)
+        
+        with screen_header.canvas.before:
+            Color(0.2, 0.4, 0.6, 1)
+            screen_header.bg = Rectangle(pos=screen_header.pos, size=screen_header.size)
+        
+        screen_header.bind(
+            pos=lambda i, v: setattr(screen_header.bg, 'pos', i.pos),
+            size=lambda i, v: setattr(screen_header.bg, 'size', i.size))
+        
+        back_btn = Button(
+            text="← Back",
+            size_hint_x=None,
+            width=dp(80),
+            background_normal='',
+            background_color=(0.3, 0.5, 0.7, 1),
+            color=(1, 1, 1, 1))
+        back_btn.bind(on_press=self.go_back)
+        screen_header.add_widget(back_btn)
+        
+        title = Label(
+            text=self.header_text,
+            halign='left',
+            valign='middle',
+            color=(1, 1, 1, 1),
+            size_hint_x=1)
+        title.bind(width=lambda *x: setattr(title, 'text_size', (title.width, None)))
+        screen_header.add_widget(title)
+        
+        main_layout.add_widget(screen_header)
+        
+        # Scrollable content area
+        scroll_view = ScrollView(bar_width=dp(8))
+        content_layout = GridLayout(
+            cols=1,
+            size_hint_y=None,
+            spacing=5,
+            padding=[0, 5, 0, 5])
+        content_layout.bind(minimum_height=content_layout.setter('height'))
+        
+        # Add table name label
+        table_name_label = Label(
+            text=f"[b]{self.table_key}[/b]",
+            markup=True,
+            size_hint_y=None,
+            height=dp(40),
+            color=(0.2, 0.4, 0.6, 1),
+            bold=True,
+            halign='left')
+        content_layout.add_widget(table_name_label)
+        
+        # Determine columns
+        if isinstance(self.table_data[0], dict):
+            columns = list(self.table_data[0].keys())
+            rows = [list(row.values()) for row in self.table_data]
+        else:
+            columns = self.table_data[0] if len(self.table_data) > 1 else [f"Col {i+1}" for i in range(len(self.table_data[0]))]
+            rows = self.table_data[1:] if len(self.table_data) > 1 else self.table_data
+        
+        # Add column headers
+        header_row = GridLayout(
+            cols=len(columns),
+            size_hint_y=None,
+            height=dp(40),
+            spacing=2)
+        
+        with header_row.canvas.before:
+            Color(0.3, 0.5, 0.7, 1)
+            header_row.bg = Rectangle(pos=header_row.pos, size=header_row.size)
+        
+        header_row.bind(
+            pos=lambda i, v: setattr(header_row.bg, 'pos', i.pos),
+            size=lambda i, v: setattr(header_row.bg, 'size', i.size))
+        
+        for col in columns:
+            header_cell = Label(
+                text=str(col),
+                color=(1, 1, 1, 1),
+                bold=True,
+                halign='center',
+                valign='middle')
+            header_cell.bind(size=header_cell.setter('text_size'))
+            header_row.add_widget(header_cell)
+        
+        content_layout.add_widget(header_row)
+        
+        # Add data rows
+        for i, row in enumerate(rows):
+            row_layout = GridLayout(
+                cols=len(columns),
+                size_hint_y=None,
+                height=dp(40),
+                spacing=2)
+            
+            row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
+            
+            with row_layout.canvas.before:
+                Color(*row_color)
+                row_layout.bg = Rectangle(pos=row_layout.pos, size=row_layout.size)
+            
+            row_layout.bind(
+                pos=lambda i, v: setattr(i.bg, 'pos', i.pos),
+                size=lambda i, v: setattr(i.bg, 'size', i.size))
+            
+            for value in row:
+                cell = Label(
+                    text=str(value),
+                    color=(0, 0, 0, 1),
+                    halign='center',
+                    valign='middle')
+                cell.bind(size=cell.setter('text_size'))
+                row_layout.add_widget(cell)
+            
+            content_layout.add_widget(row_layout)
+        
+        scroll_view.add_widget(content_layout)
+        main_layout.add_widget(scroll_view)
+        
+        self.add_widget(main_layout)
+    
+    def go_back(self, instance):
+        if self.manager:
+            self.manager.current = 'main'
 
 class Unit3App(SearchApp):
     def __init__(self, **kwargs):
