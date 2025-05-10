@@ -10,7 +10,6 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
-from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.uix.modalview import ModalView
 from functools import partial
@@ -203,6 +202,7 @@ class SearchApp(App):
             'User-Agent': 'Mozilla/5.0',
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'}
+        self.auto_update = True  # Flag for automatic updates
 
     def load_data(self):
         try:
@@ -228,9 +228,98 @@ class SearchApp(App):
         self.sm = ScreenManager()
         main_screen = MainScreen(self)
         self.sm.add_widget(main_screen)
+        
+        # Schedule periodic updates every hour
         Clock.schedule_interval(self.check_for_updates, 3600)
+        
+        # Check for updates on startup if auto_update is True
+        if self.auto_update:
+            Clock.schedule_once(lambda dt: self.check_for_updates(dt, initial_check=True), 1)
+        
+        # Load headers after a short delay
         Clock.schedule_once(lambda dt: self.load_headers_list(), 0.5)
         return self.sm
+
+    def check_for_updates(self, dt, initial_check=False):
+        try:
+            if not self.github_data_url:
+                return
+                
+            response = requests.head(
+                self.github_data_url,
+                headers=self.headers,
+                timeout=5)
+            response.raise_for_status()
+            
+            github_last_modified = response.headers.get("Last-Modified", "")
+            local_last_updated = self.data.get("last_updated", "")
+            
+            # If this is the initial check, we want to update if data is never loaded
+            # or if GitHub has newer data
+            if initial_check:
+                if not local_last_updated or github_last_modified > local_last_updated:
+                    self.update_data()
+            else:
+                # For periodic checks, only update if GitHub has newer data
+                if github_last_modified > local_last_updated:
+                    self.update_data()
+                    
+        except requests.RequestException as e:
+            Logger.error(f"Update check failed: {str(e)}")
+            if initial_check:
+                # If initial check fails, just load existing data
+                self.load_headers_list()
+
+    def update_data(self, instance=None):
+        try:
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = "Updating..."
+            
+            self.loading_modal = ModalView(size_hint=(0.8, 0.3))
+            loading_box = BoxLayout(orientation='vertical', padding=dp(20))
+            loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
+            self.loading_modal.add_widget(loading_box)
+            self.loading_modal.open()
+            
+            Clock.schedule_once(self._perform_update, 0.1)
+        except Exception as e:
+            Logger.error(f"Update initialization failed: {str(e)}")
+            if hasattr(self, 'loading_modal') and self.loading_modal:
+                self.loading_modal.dismiss()
+            main_screen = self.main_screen
+            if main_screen and main_screen.status_label:
+                main_screen.status_label.text = f"Update failed: {str(e)}"
+
+    def _perform_update(self, *args):
+        try:
+            response = requests.get(
+                self.github_data_url,
+                headers=self.headers,
+                timeout=10)
+            response.raise_for_status()
+            new_data = response.json()
+
+            self.data["tables"] = new_data
+            self.data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.last_updated = self.data["last_updated"]
+            
+            self.save_data()
+            self.load_headers_list()
+            
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
+
+        except Exception as e:
+            Logger.error(f"Update failed: {str(e)}")
+            if hasattr(self, 'loading_modal'):
+                self.loading_modal.dismiss()
+                self.loading_modal = ModalView(size_hint=(0.8, 0.3))
+                error_box = BoxLayout(orientation='vertical', padding=dp(20))
+                error_box.add_widget(Label(text=f"Update failed:\n{str(e)}", color=(0.8, 0.2, 0.2, 1)))
+                self.loading_modal.add_widget(error_box)
+                self.loading_modal.open()
+                Clock.schedule_once(lambda dt: self.loading_modal.dismiss(), 2)
 
     @property
     def main_screen(self):
@@ -295,54 +384,6 @@ class SearchApp(App):
             main_screen.results_container.clear_widgets()
         if main_screen.results_count_label:
             main_screen.results_count_label.text = ""
-
-    def update_data(self, instance=None):
-        try:
-            main_screen = self.main_screen
-            if main_screen and main_screen.status_label:
-                main_screen.status_label.text = "Updating..."
-            
-            self.loading_modal = ModalView(size_hint=(0.8, 0.3))
-            loading_box = BoxLayout(orientation='vertical', padding=dp(20))
-            loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
-            self.loading_modal.add_widget(loading_box)
-            self.loading_modal.open()
-            
-            Clock.schedule_once(self._perform_update, 0.1)
-        except Exception as e:
-            main_screen = self.main_screen
-            if main_screen and main_screen.status_label:
-                main_screen.status_label.text = f"Update failed: {str(e)}"
-
-    def _perform_update(self, *args):
-        try:
-            response = requests.get(
-                self.github_data_url,
-                headers=self.headers,
-                timeout=10)
-            response.raise_for_status()
-            new_data = response.json()
-
-            self.data["tables"] = new_data
-            self.data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.last_updated = self.data["last_updated"]
-            
-            self.save_data()
-            self.load_headers_list()
-            
-            if hasattr(self, 'loading_modal'):
-                self.loading_modal.dismiss()
-
-        except Exception as e:
-            Logger.error(f"Update failed: {str(e)}")
-            if hasattr(self, 'loading_modal'):
-                self.loading_modal.dismiss()
-                self.loading_modal = ModalView(size_hint=(0.8, 0.3))
-                error_box = BoxLayout(orientation='vertical', padding=dp(20))
-                error_box.add_widget(Label(text=f"Update failed:\n{str(e)}", color=(0.8, 0.2, 0.2, 1)))
-                self.loading_modal.add_widget(error_box)
-                self.loading_modal.open()
-                Clock.schedule_once(lambda dt: self.loading_modal.dismiss(), 2)
 
     def do_search(self, instance):
         main_screen = self.main_screen
@@ -606,22 +647,6 @@ class SearchApp(App):
                 table_data)
             self.sm.add_widget(table_screen)
             self.sm.current = table_key
-
-    def check_for_updates(self, dt):
-        try:
-            if not self.github_data_url:
-                return
-                
-            response = requests.head(
-                self.github_data_url,
-                headers=self.headers,
-                timeout=5)
-            response.raise_for_status()
-            github_last_modified = response.headers.get("Last-Modified", "")
-            if github_last_modified and github_last_modified > self.data.get("last_updated", ""):
-                self.update_data()
-        except requests.RequestException:
-            pass
 
     def on_stop(self):
         self.save_data()
