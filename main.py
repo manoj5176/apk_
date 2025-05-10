@@ -50,7 +50,7 @@ class MainScreen(Screen):
             size=lambda i, v: setattr(self.header_bg, 'size', i.size))
         
         self.title_label = Label(
-            text="PDF Data Search",
+            text="SWGR Data Search",
             font_size=dp(18),
             color=(1, 1, 1, 1),
             size_hint_x=0.6,
@@ -134,7 +134,7 @@ class MainScreen(Screen):
             font_size=dp(12))
         main_layout.add_widget(self.results_count_label)
 
-        # Content Area with proper Screen management
+        # Content Area
         content_area = BoxLayout(orientation='vertical', size_hint=(1, 1))
         
         # Create headers screen
@@ -158,7 +158,6 @@ class MainScreen(Screen):
             padding=dp(5))
         self.results_container.bind(minimum_height=self.results_container.setter('height'))
 
-        # Create a single ScrollView that wraps everything
         self.main_scroll = ScrollView(size_hint=(1, 1))
         self.main_scroll.add_widget(self.results_container)
         self.results_screen.add_widget(self.main_scroll)
@@ -189,14 +188,14 @@ class MainScreen(Screen):
         LauncherApp().run()
 
 class SearchApp(App):
-    github_data_url = StringProperty("")
+    github_data_url = StringProperty("https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data.json")
     last_updated = StringProperty("Never")
     show_headers = BooleanProperty(True)
     search_results_count = NumericProperty(0)
     current_open_header = StringProperty("")
     sm = ObjectProperty(None, allownone=True)
     
-    def __init__(self, json_file="unit3.json", **kwargs):
+    def __init__(self, json_file="swgr_data.json", **kwargs):
         super().__init__(**kwargs)
         self.json_file = json_file
         self.data = {"tables": {}, "last_updated": "Never"}
@@ -320,8 +319,7 @@ class SearchApp(App):
             response = requests.get(
                 self.github_data_url,
                 headers=self.headers,
-                timeout=10,
-                verify=False)
+                timeout=10)
             response.raise_for_status()
             new_data = response.json()
 
@@ -439,7 +437,7 @@ class SearchApp(App):
         if not main_screen or not main_screen.results_container or not main_screen.results_count_label:
             return
 
-        # Create result item (without its own ScrollView)
+        # Create result item
         result_item = BoxLayout(
             orientation='vertical',
             size_hint_y=None,
@@ -465,7 +463,7 @@ class SearchApp(App):
 
         if isinstance(table_data, list) and table_data:
             try:
-                # Create the data table container (no ScrollView here)
+                # Create the data table container
                 data_table = GridLayout(
                     cols=1,
                     size_hint_y=None,
@@ -473,7 +471,7 @@ class SearchApp(App):
                     padding=dp(1))
                 data_table.bind(minimum_height=data_table.setter('height'))
                 
-                # Determine columns and rows (your existing code)
+                # Determine columns and rows
                 if isinstance(table_data[0], dict):
                     columns = list(table_data[0].keys())
                     rows = table_data
@@ -481,7 +479,7 @@ class SearchApp(App):
                     columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
                     rows = table_data[1:] if len(table_data) > 1 else table_data
                 
-                # Add header row (your existing code)
+                # Add header row
                 header_row = GridLayout(
                     cols=len(columns),
                     size_hint_y=None,
@@ -509,7 +507,7 @@ class SearchApp(App):
                 
                 data_table.add_widget(header_row)
                 
-                # Add data rows (your existing code)
+                # Add data rows
                 for i, row in enumerate(rows):
                     row_layout = GridLayout(
                         cols=len(columns),
@@ -556,7 +554,7 @@ class SearchApp(App):
                 table_height = dp(40) + (row_count * dp(40))
                 data_table.height = table_height
                 
-                # Add table directly to result item (no ScrollView)
+                # Add table directly to result item
                 result_item.add_widget(data_table)
                 result_item.height = header_btn.height + data_table.height + dp(10)
                 
@@ -617,8 +615,7 @@ class SearchApp(App):
             response = requests.head(
                 self.github_data_url,
                 headers=self.headers,
-                timeout=5,
-                verify=False)
+                timeout=5)
             response.raise_for_status()
             github_last_modified = response.headers.get("Last-Modified", "")
             if github_last_modified and github_last_modified > self.data.get("last_updated", ""):
@@ -770,16 +767,6 @@ class TableViewScreen(Screen):
         if self.manager:
             self.manager.current = 'main'
 
-class Unit3App(SearchApp):
-    def __init__(self, **kwargs):
-        super().__init__(json_file="unit3.json", **kwargs)
-        self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data.json"
-
-class Unit4App(SearchApp):
-    def __init__(self, **kwargs):
-        super().__init__(json_file="unit4.json", **kwargs)
-        self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data1.json"
-
 class LauncherScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -790,7 +777,7 @@ class LauncherScreen(Screen):
         layout = BoxLayout(orientation='vertical', spacing=dp(20), padding=dp(20))
         
         title = Label(
-            text="[b]SWGR Data Apps[/b]",
+            text="[b]SWGR Data App[/b]",
             markup=True,
             font_size=dp(24),
             size_hint_y=None,
@@ -798,37 +785,16 @@ class LauncherScreen(Screen):
             color=(0.2, 0.2, 0.6, 1))
         layout.add_widget(title)
         
-        unit3_btn = Button(
-            text="Unit 3 Data",
+        search_btn = Button(
+            text="SWGR Data Search",
             size_hint_y=None,
             height=dp(60),
             background_normal='',
             background_color=(0.2, 0.4, 0.6, 1),
             color=(1, 1, 1, 1),
             font_size=dp(20))
-        unit3_btn.bind(on_press=self.launch_pdf_search)
-        layout.add_widget(unit3_btn)
-        
-        unit4_btn = Button(
-            text="Unit 4 Data",
-            size_hint_y=None,
-            height=dp(60),
-            background_normal='',
-            background_color=(0.4, 0.2, 0.6, 1),
-            color=(1, 1, 1, 1),
-            font_size=dp(20))
-        unit4_btn.bind(on_press=self.launch_pdf_search1)
-        layout.add_widget(unit4_btn)
-        
-        unit2_btn = Button(
-            text="Coming Soon",
-            size_hint_y=None,
-            height=dp(60),
-            background_normal='',
-            background_color=(0.6, 0.2, 0.4, 1),
-            color=(1, 1, 1, 1),
-            font_size=dp(20))
-        layout.add_widget(unit2_btn)
+        search_btn.bind(on_press=self.launch_pdf_search)
+        layout.add_widget(search_btn)
         
         exit_btn = Button(
             text="Exit",
@@ -845,11 +811,7 @@ class LauncherScreen(Screen):
     
     def launch_pdf_search(self, instance):
         App.get_running_app().stop()
-        Unit3App().run()
-    
-    def launch_pdf_search1(self, instance):
-        App.get_running_app().stop()
-        Unit4App().run()
+        SearchApp().run()
 
     def exit_app(self, instance):
         App.get_running_app().stop()
