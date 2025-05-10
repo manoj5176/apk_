@@ -38,8 +38,8 @@ source.include_patterns = android/app/src/main/AndroidManifest.xml
 version = 0.1
 
 # (str) Application versioning (method 2)
- version.regex = __version__ = ['"](.*)['"]
- version.filename = %(source.dir)s/main.py
+# version.regex = __version__ = ['"](.*)['"]
+# version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
@@ -47,32 +47,7 @@ requirements = python3,kivy==2.1.0,pillow,requests,uuid,datetime,urllib3,chardet
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
-# requirements.source.kivy = ../../kivy
-
-# (str) Presplash of the application
-presplash.filename = %(source.dir)s/ntpc-logo.png
-
-# (str) Icon of the application
-icon.filename =  %(source.dir)s/ntpc-logo.png
-
-# (list) Supported orientations
-# Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
-orientation = portrait
-
-# (list) List of services to declare
-# This is currently only relevant to Android services.
-# Each service consists of a name (a valid Java class name, with the first letter capitalized)
-# followed by a colon, followed by the name of the Python script (.py file) that should be
-# launched. This is optionally followed by ":foreground" for foreground services or
-# ":foreground:sticky" for sticky foreground services. The default is a background service.
-# Bound services are not supported.
-#services = NAME:ENTRYPOINT_TO_PY,NAME2:ENTRYPOINT2_TO_PY
-
-#
-# OSX Specific
-#
-
-#
+@@ -76,338 +76,338 @@
 # author = © Copyright Info
 
 # Kivy version to use
@@ -197,8 +172,7 @@ android.add_src = ./libs
 # Either form may be used, and assets need not be in 'source.include_exts'.
 # 1) android.add_assets = source_asset_relative_path
 # 2) android.add_assets = source_asset_path:destination_asset_relative_path
-#android.add_assets = unit3.json:assets/
-#android.add_assets = unit4.json:assets/
+#android.add_assets =
 
 # (list) Put these files or directories in the apk res directory.
 # The option may be used in three ways, the value may contain one or zero ':'
@@ -213,12 +187,12 @@ android.add_src = ./libs
 #android.add_resources =
 
 # (list) Gradle dependencies to add
-android.gradle_dependencies = 'androidx.core:core:1.9.0'
+#android.gradle_dependencies =
 
 # (bool) Enable AndroidX support. Enable when 'android.gradle_dependencies'
 # contains an 'androidx' package, or any package from Kotlin source.
 # android.enable_androidx requires android.api >= 28
-android.enable_androidx = True
+#android.enable_androidx = True
 android.manifest_template = ./templates/AndroidManifest.xml
 # (list) add java compile options
 # this can for example be necessary when importing certain java libraries using the 'android.gradle_dependencies' option
@@ -302,7 +276,7 @@ android.archs = arm64-v8a, armeabi-v7a
 # android.numeric_version = 1
 
 # (bool) enables Android auto backup feature (Android API >=23)
-android.allow_backup = False
+android.allow_backup = True
 
 # (str) XML file for custom backup rules (see official auto backup documentation)
 # android.backup_rules =
@@ -318,7 +292,7 @@ android.softinput_mode = adjustResize
 # android.no-byte-compile-python = False
 
 # (str) The format used to package the app for release mode (aab or apk or aar).
- android.release_artifact = aab
+# android.release_artifact = aab
 
 # (str) The format used to package the app for debug mode (apk or aar).
 # android.debug_artifact = apk
