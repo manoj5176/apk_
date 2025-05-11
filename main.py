@@ -20,35 +20,35 @@ from datetime import datetime
 import os
 from kivy.logger import Logger
 from kivy.core.window import Window
-
+from kivy.utils import platform
 class MainScreen(Screen):
     def __init__(self, app, **kwargs):
         super().__init__(**kwargs)
         self.name = 'main'
         self.app = app
         self.build_ui()
-    
+
     def build_ui(self):
         main_layout = BoxLayout(
             orientation="vertical",
             spacing=dp(5),
             padding=[dp(10), dp(5), dp(10), dp(5)])
-        
+
         # Header
         header = BoxLayout(
             size_hint_y=None,
             height=dp(50),
             padding=dp(5),
             spacing=dp(5))
-        
+
         with header.canvas.before:
             Color(0.2, 0.4, 0.6, 1)
             self.header_bg = Rectangle(pos=header.pos, size=header.size)
-        
+
         header.bind(
             pos=lambda i, v: setattr(self.header_bg, 'pos', i.pos),
             size=lambda i, v: setattr(self.header_bg, 'size', i.size))
-        
+
         self.title_label = Label(
             text="PDF Data Search",
             font_size=dp(18),
@@ -59,7 +59,7 @@ class MainScreen(Screen):
             text_size=(Window.width * 0.55, None),
             shorten=True,
             shorten_from='right')
-        
+
         self.status_label = Label(
             text=f"Last updated: {self.app.last_updated}",
             color=(1, 1, 1, 1),
@@ -69,7 +69,7 @@ class MainScreen(Screen):
             font_size=dp(10),
             text_size=(Window.width * 0.35, None),
             shorten=True)
-        
+
         header.add_widget(self.title_label)
         header.add_widget(self.status_label)
         main_layout.add_widget(header)
@@ -83,7 +83,7 @@ class MainScreen(Screen):
             font_size=dp(14),
             size_hint_x=0.7)
         self.search_input.bind(on_text_validate=partial(self.app.do_search, None))
-        
+
         search_btn = Button(
             text="search",
             size_hint_x=0.15,
@@ -91,7 +91,7 @@ class MainScreen(Screen):
             background_normal='',
             background_color=(0.3, 0.5, 0.7, 1))
         search_btn.bind(on_press=self.app.do_search)
-        
+
         clear_btn = Button(
             text="clear",
             size_hint_x=0.15,
@@ -99,7 +99,7 @@ class MainScreen(Screen):
             background_normal='',
             background_color=(0.7, 0.3, 0.3, 1))
         clear_btn.bind(on_press=self.app.clear_search)
-        
+
         search_box.add_widget(self.search_input)
         search_box.add_widget(search_btn)
         search_box.add_widget(clear_btn)
@@ -107,13 +107,13 @@ class MainScreen(Screen):
 
         # Action buttons
         action_box = BoxLayout(size_hint_y=None, height=dp(45), spacing=dp(5))
-        
+
         buttons = [
             ("Update", self.app.update_data),
             ("Headers", self.app.show_headers_list),
             ("Back", self.back_to_launcher)
         ]
-        
+
         for text, callback in buttons:
             btn = Button(
                 text=text,
@@ -122,7 +122,7 @@ class MainScreen(Screen):
                 background_color=(0.3, 0.5, 0.7, 1))
             btn.bind(on_press=callback)
             action_box.add_widget(btn)
-        
+
         main_layout.add_widget(action_box)
 
         self.results_count_label = Label(
@@ -136,7 +136,7 @@ class MainScreen(Screen):
 
         # Content Area with proper Screen management
         content_area = BoxLayout(orientation='vertical', size_hint=(1, 1))
-        
+
         # Create headers screen
         self.headers_screen = Screen(name='headers')
         self.headers_scroll = ScrollView()
@@ -168,22 +168,22 @@ class MainScreen(Screen):
         self.content_switcher.add_widget(self.headers_screen)
         self.content_switcher.add_widget(self.results_screen)
         content_area.add_widget(self.content_switcher)
-        
+
         # Start with headers view visible
         self.content_switcher.current = 'headers'
-        
+
         main_layout.add_widget(content_area)
         self.add_widget(main_layout)
-        
+
         Window.bind(on_resize=self._update_layout)
         self._update_layout()
-    
+
     def _update_layout(self, *args):
         self.title_label.text_size = (Window.width * 0.55, None)
         self.status_label.text_size = (Window.width * 0.35, None)
         self.title_label.texture_update()
         self.status_label.texture_update()
-    
+
     def back_to_launcher(self, instance):
         App.get_running_app().stop()
         LauncherApp().run()
@@ -195,32 +195,93 @@ class SearchApp(App):
     search_results_count = NumericProperty(0)
     current_open_header = StringProperty("")
     sm = ObjectProperty(None, allownone=True)
-    
+
     def __init__(self, json_file="unit3.json", **kwargs):
         super().__init__(**kwargs)
         self.json_file = json_file
         self.data = {"tables": {}, "last_updated": "Never"}
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'}
+
+    def get_data_path(self, filename):
+        """Get appropriate storage path for the current platform"""
+        if platform == 'android':
+            from android.storage import app_storage_path
+            storage_path = app_storage_path()
+            os.makedirs(storage_path, exist_ok=True)
+            return os.path.join(storage_path, filename)
+        return filename
+
+    def ensure_data_file(self):
+        """Ensure data file exists, download if needed"""
+        json_path = self.get_data_path(self.json_file)
+        
+        # If file doesn't exist or is empty, try to download
+        if not os.path.exists(json_path) or os.path.getsize(json_path) == 0:
+            return self.download_data_file()
+        return json_path
+
+    def download_data_file(self):
+        """Download data file from GitHub"""
+        try:
+            if not self.github_data_url:
+                Logger.error("No GitHub URL configured")
+                return None
+
+            response = requests.get(self.github_data_url, headers=self.headers)
+            response.raise_for_status()
+            
+            json_path = self.get_data_path(self.json_file)
+            data = response.json()
+            data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            with open(json_path, 'w') as f:
+                json.dump(data, f)
+                
+            return json_path
+        except Exception as e:
+            Logger.error(f"Data download failed: {str(e)}")
+            return None
 
     def load_data(self):
-        try:
-            if os.path.exists(self.json_file):
-                with open(self.json_file, 'r') as f:
+        """Load data with fallback to packaged version"""
+        # First try downloaded version
+        json_path = self.get_data_path(self.json_file)
+        
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, 'r') as f:
                     self.data = json.load(f)
                     self.last_updated = self.data.get("last_updated", "Never")
-            else:
-                self.data = {"tables": {}, "last_updated": "Never"}
+                return
+            except Exception as e:
+                Logger.error(f"Error loading downloaded JSON: {str(e)}")
+
+        # Fallback to packaged version
+        try:
+            from kivy.resources import resource_find
+            packaged_file = resource_find(self.json_file)
+            if packaged_file:
+                with open(packaged_file, 'r') as f:
+                    self.data = json.load(f)
+                    self.last_updated = "Packaged version"
         except Exception as e:
-            Logger.error(f"Error loading JSON: {str(e)}")
+            Logger.error(f"Error loading packaged JSON: {str(e)}")
             self.data = {"tables": {}, "last_updated": "Never"}
 
     def save_data(self):
+        """Save data to writable location"""
         try:
-            with open(self.json_file, 'w') as f:
+            json_path = self.get_data_path(self.json_file)
+            with open(json_path, 'w') as f:
                 json.dump(self.data, f)
         except Exception as e:
             Logger.error(f"Error saving JSON: {str(e)}")
 
     def build(self):
+        self.ensure_data_file()
         self.load_data()
         self.sm = ScreenManager()
         main_screen = MainScreen(self)
@@ -239,9 +300,9 @@ class SearchApp(App):
         main_screen = self.main_screen
         if not main_screen or not main_screen.headers_layout:
             return
-            
+
         main_screen.headers_layout.clear_widgets()
-        
+
         for table_key, table_data in self.data.get("tables", {}).items():
             header = table_data.get("header", "")
             btn = Button(
@@ -259,9 +320,9 @@ class SearchApp(App):
     def on_header_click(self, instance):
         if not self.sm:
             return
-            
+
         table_data = self.data.get("tables", {}).get(instance.table_key, {}).get("table", [])
-        
+
         if instance.table_key in self.sm.screen_names:
             self.sm.current = instance.table_key
         else:
@@ -282,12 +343,12 @@ class SearchApp(App):
         main_screen = self.main_screen
         if not main_screen:
             return
-            
+
         if main_screen.search_input:
             main_screen.search_input.text = ""
-        
+
         main_screen.content_switcher.current = 'headers'
-        
+
         if main_screen.results_container:
             main_screen.results_container.clear_widgets()
         if main_screen.results_count_label:
@@ -298,13 +359,13 @@ class SearchApp(App):
             main_screen = self.main_screen
             if main_screen and main_screen.status_label:
                 main_screen.status_label.text = "Updating..."
-            
+
             self.loading_modal = ModalView(size_hint=(0.8, 0.3))
             loading_box = BoxLayout(orientation='vertical', padding=dp(20))
             loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
             self.loading_modal.add_widget(loading_box)
             self.loading_modal.open()
-            
+
             Clock.schedule_once(self._perform_update, 0.1)
         except Exception as e:
             main_screen = self.main_screen
@@ -315,7 +376,7 @@ class SearchApp(App):
         try:
             response = requests.get(
                 self.github_data_url,
-                
+                headers=self.headers,
                 timeout=10,
                 verify=False)
             response.raise_for_status()
@@ -324,10 +385,10 @@ class SearchApp(App):
             self.data["tables"] = new_data
             self.data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.last_updated = self.data["last_updated"]
-            
+
             self.save_data()
             self.load_headers_list()
-            
+
             if hasattr(self, 'loading_modal'):
                 self.loading_modal.dismiss()
 
@@ -346,19 +407,19 @@ class SearchApp(App):
         main_screen = self.main_screen
         if not main_screen or not main_screen.search_input or not main_screen.results_container:
             return
-            
+
         search_term = main_screen.search_input.text.strip().lower()
         if not search_term:
             return
 
         # Clear previous results
         main_screen.results_container.clear_widgets()
-        
+
         # Show loading indicator
         loading = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(40))
         loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
         main_screen.results_container.add_widget(loading)
-        
+
         # Switch to results view
         main_screen.content_switcher.current = 'results'
 
@@ -405,7 +466,7 @@ class SearchApp(App):
 
         header = table_data.get("header", "")
         table_content = table_data.get("table", [])
-        
+
         header_matches = self.search_term in header.lower()
         table_matches = []
 
@@ -456,7 +517,7 @@ class SearchApp(App):
         header_btn.header_text = header
         header_btn.table_data = table_data
         header_btn.bind(on_press=self.on_search_result_click)
-        
+
         result_item.add_widget(header_btn)
 
         if isinstance(table_data, list) and table_data:
@@ -468,7 +529,7 @@ class SearchApp(App):
                     spacing=dp(1),
                     padding=dp(1))
                 data_table.bind(minimum_height=data_table.setter('height'))
-                
+
                 # Determine columns and rows (your existing code)
                 if isinstance(table_data[0], dict):
                     columns = list(table_data[0].keys())
@@ -476,22 +537,22 @@ class SearchApp(App):
                 else:
                     columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
                     rows = table_data[1:] if len(table_data) > 1 else table_data
-                
+
                 # Add header row (your existing code)
                 header_row = GridLayout(
                     cols=len(columns),
                     size_hint_y=None,
                     height=dp(40),
                     spacing=dp(1))
-                
+
                 with header_row.canvas.before:
                     Color(0.3, 0.5, 0.7, 1)
                     header_row.bg = Rectangle(pos=header_row.pos, size=header_row.size)
-                
+
                 header_row.bind(
                     pos=self.update_header_bg,
                     size=self.update_header_bg)
-                
+
                 for col in columns:
                     header_cell = Label(
                         text=str(col),
@@ -502,9 +563,9 @@ class SearchApp(App):
                         font_size=dp(14))
                     header_cell.bind(size=header_cell.setter('text_size'))
                     header_row.add_widget(header_cell)
-                
+
                 data_table.add_widget(header_row)
-                
+
                 # Add data rows (your existing code)
                 for i, row in enumerate(rows):
                     row_layout = GridLayout(
@@ -512,17 +573,17 @@ class SearchApp(App):
                         size_hint_y=None,
                         height=dp(40),
                         spacing=dp(1))
-                    
+
                     row_layout.row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
-                    
+
                     with row_layout.canvas.before:
                         Color(*row_layout.row_color)
                         row_layout.bg = Rectangle(pos=row_layout.pos, size=row_layout.size)
-                    
+
                     row_layout.bind(
                         pos=self.update_row_bg,
                         size=self.update_row_bg)
-                    
+
                     if isinstance(row, dict):
                         for col in columns:
                             value = row.get(col, "")
@@ -544,18 +605,18 @@ class SearchApp(App):
                                 font_size=dp(14))
                             cell.bind(size=cell.setter('text_size'))
                             row_layout.add_widget(cell)
-                    
+
                     data_table.add_widget(row_layout)
-                
+
                 # Calculate height for this table only
                 row_count = len(rows)
                 table_height = dp(40) + (row_count * dp(40))
                 data_table.height = table_height
-                
+
                 # Add table directly to result item (no ScrollView)
                 result_item.add_widget(data_table)
                 result_item.height = header_btn.height + data_table.height + dp(10)
-                
+
             except Exception as e:
                 Logger.error(f"Error displaying table: {str(e)}")
                 error_label = Label(
@@ -585,16 +646,16 @@ class SearchApp(App):
     def on_search_result_click(self, instance):
         if not self.sm:
             return
-            
+
         # Safely get the attributes with defaults
         table_key = getattr(instance, 'table_key', None)
         header_text = getattr(instance, 'header_text', "")
         table_data = getattr(instance, 'table_data', [])
-        
+
         if not table_key:
             Logger.error("Clicked button has no table_key")
             return
-            
+
         if table_key in self.sm.screen_names:
             self.sm.current = table_key
         else:
@@ -609,7 +670,7 @@ class SearchApp(App):
         try:
             if not self.github_data_url:
                 return
-                
+
             response = requests.head(
                 self.github_data_url,
                 headers=self.headers,
@@ -633,25 +694,25 @@ class TableViewScreen(Screen):
         self.header_text = header
         self.table_data = table_data
         self.build_ui()
-    
+
     def build_ui(self):
         main_layout = BoxLayout(orientation='vertical', spacing=0)
-        
+
         # Screen header with back button
         screen_header = BoxLayout(
             size_hint_y=None, 
             height=dp(50),
             padding=[10, 5],
             spacing=10)
-        
+
         with screen_header.canvas.before:
             Color(0.2, 0.4, 0.6, 1)
             screen_header.bg = Rectangle(pos=screen_header.pos, size=screen_header.size)
-        
+
         screen_header.bind(
             pos=lambda i, v: setattr(screen_header.bg, 'pos', i.pos),
             size=lambda i, v: setattr(screen_header.bg, 'size', i.size))
-        
+
         back_btn = Button(
             text="← Back",
             size_hint_x=None,
@@ -661,7 +722,7 @@ class TableViewScreen(Screen):
             color=(1, 1, 1, 1))
         back_btn.bind(on_press=self.go_back)
         screen_header.add_widget(back_btn)
-        
+
         title = Label(
             text=self.header_text,
             halign='left',
@@ -670,9 +731,9 @@ class TableViewScreen(Screen):
             size_hint_x=1)
         title.bind(width=lambda *x: setattr(title, 'text_size', (title.width, None)))
         screen_header.add_widget(title)
-        
+
         main_layout.add_widget(screen_header)
-        
+
         # Scrollable content area
         scroll_view = ScrollView(bar_width=dp(8))
         content_layout = GridLayout(
@@ -681,7 +742,7 @@ class TableViewScreen(Screen):
             spacing=5,
             padding=[0, 5, 0, 5])
         content_layout.bind(minimum_height=content_layout.setter('height'))
-        
+
         # Add table name label
         table_name_label = Label(
             text=f"[b]{self.table_key}[/b]",
@@ -692,7 +753,7 @@ class TableViewScreen(Screen):
             bold=True,
             halign='left')
         content_layout.add_widget(table_name_label)
-        
+
         # Determine columns
         if isinstance(self.table_data[0], dict):
             columns = list(self.table_data[0].keys())
@@ -700,22 +761,22 @@ class TableViewScreen(Screen):
         else:
             columns = self.table_data[0] if len(self.table_data) > 1 else [f"Col {i+1}" for i in range(len(self.table_data[0]))]
             rows = self.table_data[1:] if len(self.table_data) > 1 else self.table_data
-        
+
         # Add column headers
         header_row = GridLayout(
             cols=len(columns),
             size_hint_y=None,
             height=dp(40),
             spacing=2)
-        
+
         with header_row.canvas.before:
             Color(0.3, 0.5, 0.7, 1)
             header_row.bg = Rectangle(pos=header_row.pos, size=header_row.size)
-        
+
         header_row.bind(
             pos=lambda i, v: setattr(header_row.bg, 'pos', i.pos),
             size=lambda i, v: setattr(header_row.bg, 'size', i.size))
-        
+
         for col in columns:
             header_cell = Label(
                 text=str(col),
@@ -725,9 +786,9 @@ class TableViewScreen(Screen):
                 valign='middle')
             header_cell.bind(size=header_cell.setter('text_size'))
             header_row.add_widget(header_cell)
-        
+
         content_layout.add_widget(header_row)
-        
+
         # Add data rows
         for i, row in enumerate(rows):
             row_layout = GridLayout(
@@ -735,17 +796,17 @@ class TableViewScreen(Screen):
                 size_hint_y=None,
                 height=dp(40),
                 spacing=2)
-            
+
             row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
-            
+
             with row_layout.canvas.before:
                 Color(*row_color)
                 row_layout.bg = Rectangle(pos=row_layout.pos, size=row_layout.size)
-            
+
             row_layout.bind(
                 pos=lambda i, v: setattr(i.bg, 'pos', i.pos),
                 size=lambda i, v: setattr(i.bg, 'size', i.size))
-            
+
             for value in row:
                 cell = Label(
                     text=str(value),
@@ -754,14 +815,14 @@ class TableViewScreen(Screen):
                     valign='middle')
                 cell.bind(size=cell.setter('text_size'))
                 row_layout.add_widget(cell)
-            
+
             content_layout.add_widget(row_layout)
-        
+
         scroll_view.add_widget(content_layout)
         main_layout.add_widget(scroll_view)
-        
+
         self.add_widget(main_layout)
-    
+
     def go_back(self, instance):
         if self.manager:
             self.manager.current = 'main'
@@ -781,10 +842,10 @@ class LauncherScreen(Screen):
         super().__init__(**kwargs)
         self.name = 'launcher'
         self.build_ui()
-    
+
     def build_ui(self):
         layout = BoxLayout(orientation='vertical', spacing=dp(20), padding=dp(20))
-        
+
         title = Label(
             text="[b]SWGR Data Apps[/b]",
             markup=True,
@@ -793,7 +854,7 @@ class LauncherScreen(Screen):
             height=dp(60),
             color=(0.2, 0.2, 0.6, 1))
         layout.add_widget(title)
-        
+
         unit3_btn = Button(
             text="Unit 3 Data",
             size_hint_y=None,
@@ -825,7 +886,7 @@ class LauncherScreen(Screen):
             color=(1, 1, 1, 1),
             font_size=dp(20))
         layout.add_widget(unit2_btn)
-        
+
         exit_btn = Button(
             text="Exit",
             size_hint_y=None,
@@ -836,9 +897,9 @@ class LauncherScreen(Screen):
             font_size=dp(18))
         exit_btn.bind(on_press=self.exit_app)
         layout.add_widget(exit_btn)
-        
+
         self.add_widget(layout)
-    
+
     def launch_pdf_search(self, instance):
         App.get_running_app().stop()
         Unit3App().run()
