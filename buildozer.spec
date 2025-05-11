@@ -35,7 +35,7 @@ source.include_patterns = android/app/src/main/AndroidManifest.xml
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 0.1
+version = 1
 
 # (str) Application versioning (method 2)
  version.regex = __version__ = ['"](.*)['"]
