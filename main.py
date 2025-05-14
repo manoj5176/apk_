@@ -103,6 +103,17 @@ class LauncherScreen(Screen):
             font_size=dp(20))
         unit4_btn.bind(on_press=self.launch_unit4)
         layout.add_widget(unit4_btn)
+
+        unit5_btn = Button(
+            text="Unit 5 Data",
+            size_hint_y=None,
+            height=dp(60),
+            background_normal='',
+            background_color=(0.4, 0.2, 0.6, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(20))
+        unit5_btn.bind(on_press=self.launch_unit5)
+        layout.add_widget(unit5_btn)
         
         exit_btn = Button(
             text="Exit",
@@ -130,6 +141,12 @@ class LauncherScreen(Screen):
             unit4_screen = Unit4Screen(name='unit4')
             app.sm.add_widget(unit4_screen)
         app.sm.current = 'unit4'
+    def launch_unit5(self, instance):
+        app = App.get_running_app()
+        if not app.sm.has_screen('unit5'):
+            unit5_screen = Unit4Screen(name='unit5')
+            app.sm.add_widget(unit5_screen)
+        app.sm.current = 'unit5'
 
 class BaseAppScreen(Screen):
     github_data_url = StringProperty("")
@@ -856,6 +873,10 @@ class Unit4Screen(BaseAppScreen):
     def __init__(self, **kwargs):
         super().__init__(json_file="unit4.json", **kwargs)
         self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data1.json"
+class Unit5Screen(BaseAppScreen):
+    def __init__(self, **kwargs):
+        super().__init__(json_file="unit5.json", **kwargs)
+        self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data2.json"
 
 if __name__ == "__main__":
     MainApp().run()
