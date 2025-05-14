@@ -4,13 +4,11 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 from kivy.metrics import dp
-from kivy.properties import (StringProperty, BooleanProperty, 
-                           NumericProperty, ObjectProperty)
+from kivy.properties import StringProperty, NumericProperty, ObjectProperty
 from kivy.uix.textinput import TextInput
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, Rectangle
-from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.uix.modalview import ModalView
 from functools import partial
@@ -22,32 +20,43 @@ from kivy.logger import Logger
 from kivy.core.window import Window
 import threading
 
+class AutoSizeLabel(Label):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = (1, None)
+        self.bind(
+            width=lambda *x: self.setter('text_size')(self, (self.width, None)),
+            texture_size=self._adjust_height
+        )
+        self.padding = (dp(5), dp(5))
+        self.halign = 'center'
+        self.valign = 'middle'
+        self.font_size = dp(12)
+    
+    def _adjust_height(self, instance, texture_size):
+        self.height = texture_size[1] + dp(10)
+
 class MainApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.nav_history = []
-        self.first_run = True 
+        self.first_run = True
 
     def build(self):
         self.sm = ScreenManager()
         self.sm.bind(current=self.on_screen_change)
         
-        # Create and add launcher screen
         launcher_screen = LauncherScreen(name='launcher')
         self.sm.add_widget(launcher_screen)
         
         return self.sm
 
     def on_start(self):
-        # Check if we should auto-update on first run
         if self.first_run:
             self.first_run = False
-            # Get reference to the current screen and trigger update
             current_screen = self.sm.current_screen
-            if hasattr(current_screen, 'update_data'):
-                current_screen.update_data()
-            elif hasattr(current_screen, 'manager') and hasattr(current_screen.manager.current_screen, 'update_data'):
-                current_screen.manager.current_screen.update_data()
+            if hasattr(current_screen, 'check_and_load_data'):
+                current_screen.check_and_load_data()
 
     def on_screen_change(self, instance, screen_name):
         if screen_name not in self.nav_history and screen_name != 'launcher':
@@ -55,33 +64,6 @@ class MainApp(App):
         
         if len(self.nav_history) > 10:
             self.nav_history = self.nav_history[-10:]
-
-
-class AutoAdjustLabel(Label):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.size_hint_y = None
-        self.bind(
-            texture_size=self._adjust_height,
-            text=self._on_text_change
-        )
-        self.padding_y = dp(10)
-        self.wrap_width = None
-
-    def _on_text_change(self, instance, text):
-        self.texture_update()
-        self._adjust_height()
-
-    def _adjust_height(self, *args):
-        if not self.wrap_width or not self.texture:
-            return
-        text_height = self.texture.height
-        self.height = text_height + self.padding_y
-
-    def on_size(self, *args):
-        self.wrap_width = self.width
-        self.texture_update()
-        self._adjust_height()
 
 class LauncherScreen(Screen):
     def __init__(self, **kwargs):
@@ -154,23 +136,82 @@ class BaseAppScreen(Screen):
     last_updated = StringProperty("Never")
     search_results_count = NumericProperty(0)
     
-
-    
     def __init__(self, json_file, **kwargs):
         super().__init__(**kwargs)
         self.json_file = json_file
         self.data = {"tables": {}, "last_updated": "Never"}
-        self.load_data()
         self.build_ui()
-        Clock.schedule_interval(self.check_for_updates, 3600)
         self._search_trigger = Clock.create_trigger(self._perform_search, 0.5)
-        self._first_update_done = False  # Track if first update was done
+        self._first_update_done = False
+        self.loading_modal = None
     
+    def check_and_load_data(self):
+        """Check if JSON exists, download if not, load if exists"""
+        if not os.path.exists(self.json_file):
+            Logger.info(f"JSON file not found at {self.json_file}, downloading...")
+            self.update_data()  # This will trigger the download
+        else:
+            Logger.info(f"Loading existing JSON file from {self.json_file}")
+            try:
+                self.load_data()
+                self.load_headers_list()
+            except Exception as e:
+                Logger.error(f"Error loading local data: {str(e)}")
+                # If loading fails, try to download fresh data
+                self.update_data()
+
+    def update_data(self, instance=None):
+        """Manual update triggered by button or automatic first download"""
+        try:
+            if not self.github_data_url:
+                raise ValueError("No data URL configured")
+            
+            self.status_label.text = "Updating..."
+            self.show_loading("Downloading data..." if not os.path.exists(self.json_file) 
+                            else "Updating data...")
+            
+            threading.Thread(target=self._download_and_update, daemon=True).start()
+        except Exception as e:
+            self.status_label.text = f"Update failed: {str(e)}"
+            self.show_error(f"Update failed: {str(e)}")
+
+    def _download_and_update(self):
+        """Download data from GitHub and update local file"""
+        try:
+            Logger.info(f"Downloading data from {self.github_data_url}")
+            response = requests.get(self.github_data_url, timeout=10)
+            response.raise_for_status()
+            new_data = response.json()
+
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(self.json_file), exist_ok=True)
+            
+            with open(self.json_file, 'w') as f:
+                json.dump(new_data, f)
+            
+            Clock.schedule_once(lambda dt: self._update_complete())
+        except Exception as e:
+            Logger.error(f"Download failed: {str(e)}")
+            Clock.schedule_once(lambda dt: self._update_failed(str(e)))
+
+    def _update_complete(self):
+        """Called when download and save completes successfully"""
+        try:
+            self.load_data()
+            self.load_headers_list()
+            self.status_label.text = f"Last updated: {self.last_updated}"
+            Logger.info("Data update completed successfully")
+        except Exception as e:
+            Logger.error(f"Error completing update: {str(e)}")
+            self.status_label.text = "Update completed with errors"
+        finally:
+            self.dismiss_loading()
+
     def on_enter(self):
-        # Auto-update when screen is entered for the first time
-        if not self._first_update_done and self.github_data_url:
-            self._first_update_done = True
-            Clock.schedule_once(lambda dt: self.update_data(), 1) 
+        """Called when screen becomes visible"""
+        if not hasattr(self, '_initial_load_done'):
+            self._initial_load_done = True
+            Clock.schedule_once(lambda dt: self.check_and_load_data(), 0.5)
     
     def load_data(self):
         try:
@@ -178,6 +219,7 @@ class BaseAppScreen(Screen):
                 with open(self.json_file, 'r') as f:
                     self.data = json.load(f)
                     self.last_updated = self.data.get("last_updated", "Never")
+                    self.status_label.text = f"Last updated: {self.last_updated}"
         except Exception as e:
             Logger.error(f"Error loading JSON: {str(e)}")
     
@@ -307,7 +349,7 @@ class BaseAppScreen(Screen):
         self.headers_screen.add_widget(self.headers_scroll)
         self.content_manager.add_widget(self.headers_screen)
 
-        # Results screen - now with a single scrollable list
+        # Results screen
         self.results_screen = Screen(name='results')
         self.results_scroll = ScrollView(bar_width=dp(8))
         self.results_list = GridLayout(
@@ -325,7 +367,6 @@ class BaseAppScreen(Screen):
         
         self.add_widget(self.main_layout)
         Window.bind(on_resize=self._update_layout)
-        Clock.schedule_once(self.load_headers_list, 0.5)
     
     def _update_layout(self, *args):
         self.title_label.text_size = (Window.width * 0.55, None)
@@ -385,7 +426,6 @@ class BaseAppScreen(Screen):
     def _perform_search(self, *args):
         search_term = self.search_input.text.strip().lower()
         
-        # Show loading indicator
         self.results_list.clear_widgets()
         loading = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(40))
         loading.add_widget(Label(text="Searching...", color=(0.3, 0.5, 0.7, 1)))
@@ -398,7 +438,6 @@ class BaseAppScreen(Screen):
             self.all_data = self.data.get("tables", {})
             self.current_search_index = 0
 
-            # Process search in a separate thread for better performance
             threading.Thread(target=self._threaded_search, daemon=True).start()
         except Exception as e:
             Logger.error(f"Search error: {str(e)}")
@@ -434,7 +473,6 @@ class BaseAppScreen(Screen):
             if header_matches or table_matches:
                 results.append((table_key, header, table_matches if table_matches else table_content, header_matches))
         
-        # Update UI on main thread
         Clock.schedule_once(lambda dt: self._display_search_results(results))
     
     def _display_search_results(self, results):
@@ -451,9 +489,7 @@ class BaseAppScreen(Screen):
             self.results_count_label.text = "No results found"
             return
         
-        # Add all results to the single scrollable list
         for table_key, header, table_data, is_header_match in results:
-            # Add header for this table's results
             header_label = Label(
                 text=f"[b]{table_key}: {header}[/b]",
                 markup=True,
@@ -467,7 +503,6 @@ class BaseAppScreen(Screen):
             
             if isinstance(table_data, list) and table_data:
                 try:
-                    # Determine columns and rows
                     if isinstance(table_data[0], dict):
                         columns = list(table_data[0].keys())
                         rows = table_data
@@ -475,12 +510,11 @@ class BaseAppScreen(Screen):
                         columns = table_data[0] if len(table_data) > 1 else [f"Col {i+1}" for i in range(len(table_data[0]))]
                         rows = table_data[1:] if len(table_data) > 1 else table_data
                     
-                    # Add column headers
                     header_row = GridLayout(
                         cols=len(columns),
                         size_hint_y=None,
                         spacing=dp(1),
-                        height=dp(40))
+                        padding=(0, dp(1)))
                     
                     with header_row.canvas.before:
                         Color(0.3, 0.5, 0.7, 1)
@@ -490,27 +524,25 @@ class BaseAppScreen(Screen):
                         pos=lambda i, v: setattr(header_row.bg, 'pos', i.pos),
                         size=lambda i, v: setattr(header_row.bg, 'size', i.size))
                     
+                    max_header_height = dp(40)
                     for col in columns:
-                        header_cell = Label(
+                        header_cell = AutoSizeLabel(
                             text=str(col),
                             color=(1, 1, 1, 1),
                             bold=True,
-                            halign='center',
-                            valign='middle',
-                            font_size=dp(14),
-                            size_hint_y=None,
-                            height=dp(40))
+                            font_size=dp(14))
                         header_row.add_widget(header_cell)
+                        max_header_height = max(max_header_height, header_cell.height)
                     
+                    header_row.height = max_header_height
                     self.results_list.add_widget(header_row)
                     
-                    # Add data rows
                     for i, row in enumerate(rows):
                         row_layout = GridLayout(
                             cols=len(columns),
                             size_hint_y=None,
                             spacing=dp(1),
-                            height=dp(40))
+                            padding=(0, dp(1)))
                         
                         row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
                         
@@ -522,36 +554,26 @@ class BaseAppScreen(Screen):
                             pos=lambda i, v: setattr(i.bg, 'pos', i.pos),
                             size=lambda i, v: setattr(i.bg, 'size', i.size))
                         
+                        max_cell_height = dp(40)
                         if isinstance(row, dict):
                             for col in columns:
                                 value = row.get(col, "")
-                                cell = Label(
+                                cell = AutoSizeLabel(
                                     text=str(value) if value is not None else "",
                                     color=(0, 0, 0, 1),
-                                    halign='center',
-                                    valign='middle',
-                                    font_size=dp(12),
-                                    size_hint_y=None,
-                                    height=dp(40),
-                                    text_size=(None, dp(38)),
-                                    shorten=True,
-                                    shorten_from='right')
+                                    font_size=dp(12))
                                 row_layout.add_widget(cell)
+                                max_cell_height = max(max_cell_height, cell.height)
                         else:
                             for value in row:
-                                cell = Label(
+                                cell = AutoSizeLabel(
                                     text=str(value) if value is not None else "",
                                     color=(0, 0, 0, 1),
-                                    halign='center',
-                                    valign='middle',
-                                    font_size=dp(12),
-                                    size_hint_y=None,
-                                    height=dp(40),
-                                    text_size=(None, dp(38)),
-                                    shorten=True,
-                                    shorten_from='right')
+                                    font_size=dp(12))
                                 row_layout.add_widget(cell)
+                                max_cell_height = max(max_cell_height, cell.height)
                         
+                        row_layout.height = max_cell_height
                         self.results_list.add_widget(row_layout)
                 
                 except Exception as e:
@@ -570,72 +592,63 @@ class BaseAppScreen(Screen):
                 raise ValueError("No data URL configured")
                 
             self.status_label.text = "Updating..."
+            self.show_loading("Updating data...")
             
-            self.loading_modal = ModalView(size_hint=(0.8, 0.3))
-            loading_box = BoxLayout(orientation='vertical', padding=dp(20))
-            loading_box.add_widget(Label(text="Updating data...", font_size=dp(18)))
-            self.loading_modal.add_widget(loading_box)
-            self.loading_modal.open()
-            
-            threading.Thread(target=self._perform_update, daemon=True).start()
+            threading.Thread(target=self._download_and_update, daemon=True).start()
         except Exception as e:
             self.status_label.text = f"Update failed: {str(e)}"
-            Logger.exception("Update error")
+            self.show_error(f"Update failed: {str(e)}")
     
-    def _perform_update(self):
+    def _download_and_update(self):
         try:
-            response = requests.get(
-                self.github_data_url,
-                timeout=10,
-                verify=False)
+            response = requests.get(self.github_data_url, timeout=10)
             response.raise_for_status()
             new_data = response.json()
 
             self.data["tables"] = new_data
             self.data["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.last_updated = self.data["last_updated"]
             
-            self.save_data()
+            with open(self.json_file, 'w') as f:
+                json.dump(self.data, f)
             
-            Clock.schedule_once(lambda dt: self._finish_update())
+            Clock.schedule_once(lambda dt: self._update_complete())
         except Exception as e:
             Clock.schedule_once(lambda dt: self._update_failed(str(e)))
     
-    def _finish_update(self):
+    def _update_complete(self):
+        self.load_data()
         self.load_headers_list()
         self.status_label.text = f"Last updated: {self.last_updated}"
-        
-        if hasattr(self, 'loading_modal'):
-            self.loading_modal.dismiss()
+        self.dismiss_loading()
     
     def _update_failed(self, error):
         Logger.error(f"Update failed: {error}")
         self.status_label.text = f"Update failed: {error}"
-        
-        if hasattr(self, 'loading_modal'):
-            self.loading_modal.dismiss()
-            self.loading_modal = ModalView(size_hint=(0.8, 0.3))
-            error_box = BoxLayout(orientation='vertical', padding=dp(20))
-            error_box.add_widget(Label(text=f"Update failed:\n{error}", color=(0.8, 0.2, 0.2, 1)))
-            self.loading_modal.add_widget(error_box)
-            self.loading_modal.open()
-            Clock.schedule_once(lambda dt: self.loading_modal.dismiss(), 2)
+        self.dismiss_loading()
+        self.show_error(f"Update failed:\n{error}")
     
-    def check_for_updates(self, dt):
-        try:
-            if not self.github_data_url:
-                return
-                
-            response = requests.head(
-                self.github_data_url,
-                timeout=5,
-                verify=False)
-            response.raise_for_status()
-            github_last_modified = response.headers.get("Last-Modified", "")
-            if github_last_modified and github_last_modified > self.data.get("last_updated", ""):
-                self.update_data()
-        except requests.RequestException:
-            pass
+    def show_loading(self, message):
+        if self.loading_modal:
+            self.loading_modal.dismiss()
+        
+        self.loading_modal = ModalView(size_hint=(0.8, 0.3))
+        loading_box = BoxLayout(orientation='vertical', padding=dp(20))
+        loading_box.add_widget(Label(text=message, font_size=dp(18)))
+        self.loading_modal.add_widget(loading_box)
+        self.loading_modal.open()
+    
+    def show_error(self, message):
+        error_modal = ModalView(size_hint=(0.8, 0.3))
+        error_box = BoxLayout(orientation='vertical', padding=dp(20))
+        error_box.add_widget(Label(text=message, color=(0.8, 0.2, 0.2, 1)))
+        error_modal.add_widget(error_box)
+        error_modal.open()
+        Clock.schedule_once(lambda dt: error_modal.dismiss(), 2)
+    
+    def dismiss_loading(self):
+        if self.loading_modal:
+            self.loading_modal.dismiss()
+            self.loading_modal = None
     
     def go_back(self, instance):
         try:
@@ -643,13 +656,10 @@ class BaseAppScreen(Screen):
                 Logger.warning("No screen manager available")
                 return
                 
-            # First try to go back to headers screen
             if 'headers' in self.manager.screen_names:
                 self.manager.current = 'headers'
-            # Then try launcher
             elif 'launcher' in self.manager.screen_names:
                 self.manager.current = 'launcher'
-            # Fallback to first available screen
             elif self.manager.screens:
                 self.manager.current = self.manager.screens[0].name
         except Exception as e:
@@ -665,7 +675,6 @@ class TableViewScreen(Screen):
         self.header_text = header
         self.table_data = table_data
         self.build_ui()
-        Window.bind(on_resize=self._update_layout)
 
     def build_ui(self):
         main_layout = BoxLayout(orientation='vertical', spacing=0)
@@ -716,10 +725,11 @@ class TableViewScreen(Screen):
         self.content_layout.bind(minimum_height=self.content_layout.setter('height'))
 
         # Add table name label
-        table_name_label = AutoAdjustLabel(
+        table_name_label = Label(
             text=f"[b]{self.table_key}[/b]",
             markup=True,
             size_hint_y=None,
+            height=dp(40),
             color=(0.2, 0.4, 0.6, 1),
             bold=True,
             halign='left',
@@ -747,7 +757,8 @@ class TableViewScreen(Screen):
         header_row = GridLayout(
             cols=len(columns),
             size_hint_y=None,
-            spacing=dp(2))
+            spacing=dp(2),
+            padding=(0, dp(1)))
         
         with header_row.canvas.before:
             Color(0.3, 0.5, 0.7, 1)
@@ -759,14 +770,11 @@ class TableViewScreen(Screen):
 
         max_header_height = dp(40)
         for col in columns:
-            header_cell = AutoAdjustLabel(
+            header_cell = AutoSizeLabel(
                 text=str(col),
                 color=(1, 1, 1, 1),
                 bold=True,
-                halign='center',
-                valign='middle',
-                font_size=dp(14),
-                size_hint_y=None)
+                font_size=dp(14))
             header_row.add_widget(header_cell)
             max_header_height = max(max_header_height, header_cell.height)
 
@@ -788,7 +796,8 @@ class TableViewScreen(Screen):
             row_layout = GridLayout(
                 cols=len(columns),
                 size_hint_y=None,
-                spacing=dp(2))
+                spacing=dp(2),
+                padding=(0, dp(1)))
 
             row_color = (0.95, 0.95, 0.95, 1) if i % 2 == 0 else (0.85, 0.85, 0.85, 1)
 
@@ -801,32 +810,29 @@ class TableViewScreen(Screen):
                 size=lambda i, v: setattr(i.bg, 'size', i.size))
 
             max_cell_height = dp(40)
-            values = row.values() if isinstance(row, dict) else row
-            for value in values:
-                cell = AutoAdjustLabel(
-                    text=str(value) if value is not None else "",
-                    color=(0, 0, 0, 1),
-                    halign='center',
-                    valign='middle',
-                    font_size=dp(12),
-                    size_hint_y=None)
-                row_layout.add_widget(cell)
-                max_cell_height = max(max_cell_height, cell.height)
+            if isinstance(row, dict):
+                for col in columns:
+                    value = row.get(col, "")
+                    cell = AutoSizeLabel(
+                        text=str(value) if value is not None else "",
+                        color=(0, 0, 0, 1),
+                        font_size=dp(12))
+                    row_layout.add_widget(cell)
+                    max_cell_height = max(max_cell_height, cell.height)
+            else:
+                for value in row:
+                    cell = AutoSizeLabel(
+                        text=str(value) if value is not None else "",
+                        color=(0, 0, 0, 1),
+                        font_size=dp(12))
+                    row_layout.add_widget(cell)
+                    max_cell_height = max(max_cell_height, cell.height)
 
             row_layout.height = max_cell_height
             self.content_layout.add_widget(row_layout)
 
-    def _update_layout(self, *args):
-        for child in self.content_layout.children:
-            if isinstance(child, GridLayout):
-                for label in child.children:
-                    if isinstance(label, AutoAdjustLabel):
-                        label.text_size = (label.width, None)
-                        label._adjust_height()
-    
     def go_back(self, instance):
         app = App.get_running_app()
-        
         if hasattr(self, 'manager') and self.manager and hasattr(app, 'nav_history'):
             if self.name in app.nav_history:
                 app.nav_history.remove(self.name)
