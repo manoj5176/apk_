@@ -114,6 +114,27 @@ class LauncherScreen(Screen):
             font_size=dp(20))
         unit5_btn.bind(on_press=self.launch_unit5)
         layout.add_widget(unit5_btn)
+        unit6_btn = Button(
+            text="Unit 6 Data",
+            size_hint_y=None,
+            height=dp(60),
+            background_normal='',
+            background_color=(0.4, 0.2, 0.6, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(20))
+        unit6_btn.bind(on_press=self.launch_unit6)
+        layout.add_widget(unit6_btn)
+       
+        unit7_btn = Button(
+            text="offsite-data",
+            size_hint_y=None,
+            height=dp(60),
+            background_normal='',
+            background_color=(0.4, 0.2, 0.6, 1),
+            color=(1, 1, 1, 1),
+            font_size=dp(20))
+        unit7_btn.bind(on_press=self.launch_unit7)
+        layout.add_widget(unit7_btn)
         
         exit_btn = Button(
             text="Exit",
@@ -144,9 +165,21 @@ class LauncherScreen(Screen):
     def launch_unit5(self, instance):
         app = App.get_running_app()
         if not app.sm.has_screen('unit5'):
-            unit5_screen = Unit4Screen(name='unit5')
+            unit5_screen = Unit5Screen(name='unit5')
             app.sm.add_widget(unit5_screen)
         app.sm.current = 'unit5'
+    def launch_unit6(self, instance):
+        app = App.get_running_app()
+        if not app.sm.has_screen('unit6'):
+            unit6_screen = Unit6Screen(name='unit6')
+            app.sm.add_widget(unit6_screen)
+        app.sm.current = 'unit6'
+    def launch_unit7(self, instance):
+        app = App.get_running_app()
+        if not app.sm.has_screen('unit7'):
+            unit7_screen = Unit7Screen(name='unit7')
+            app.sm.add_widget(unit7_screen)
+        app.sm.current = 'unit7'
 
 class BaseAppScreen(Screen):
     github_data_url = StringProperty("")
@@ -877,6 +910,13 @@ class Unit5Screen(BaseAppScreen):
     def __init__(self, **kwargs):
         super().__init__(json_file="unit5.json", **kwargs)
         self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data2.json"
-
+class Unit6Screen(BaseAppScreen):
+    def __init__(self, **kwargs):
+        super().__init__(json_file="unit6.json", **kwargs)
+        self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data3.json"
+class Unit7Screen(BaseAppScreen):
+    def __init__(self, **kwargs):
+        super().__init__(json_file="unit7.json", **kwargs)
+        self.github_data_url = "https://raw.githubusercontent.com/manoj5176/swgrdetails/main/data/processed_pdf_data4.json"
 if __name__ == "__main__":
     MainApp().run()
