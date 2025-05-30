@@ -36,6 +36,22 @@ class AutoSizeLabel(Label):
     def _adjust_height(self, instance, texture_size):
         self.height = texture_size[1] + dp(10)
 
+class AutoSizeLabel1(Label):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.size_hint = (1, None)
+        self.bind(
+            width=lambda *x: self.setter('text_size')(self, (self.width, None)),
+            texture_size=self._adjust_height
+        )
+        self.padding = (dp(5), dp(5))
+        self.halign = 'left'
+        self.valign = 'middle'
+        self.font_size = dp(12)
+    
+    def _adjust_height(self, instance, texture_size):
+        self.height = texture_size[1] + dp(10)
+
 class MainApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -820,7 +836,7 @@ class TableViewScreen(Screen):
 
         max_header_height = dp(40)
         for col in columns:
-            header_cell = AutoSizeLabel(
+            header_cell = AutoSizeLabel1(
                 text=str(col),
                 color=(1, 1, 1, 1),
                 bold=True,
